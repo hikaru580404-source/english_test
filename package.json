@@ -1,8 +1,9 @@
 {
-  "name": "react-example",
+  "name": "flashcard-8",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "homepage": ".",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
