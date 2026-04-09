@@ -6,312 +6,196 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   motion, 
-  AnimatePresence 
+  AnimatePresence,
+  useMotionValue,
+  useTransform
 } from 'motion/react';
 import { 
   Trophy, 
   Timer, 
-  Settings2, 
   ArrowRightLeft, 
   Play, 
   RotateCcw, 
+  Flame,
   CheckCircle2, 
   XCircle,
-  Keyboard
+  Eye
 } from 'lucide-react';
 import { WORDS, Word } from './constants';
 
-// --- Utility: Shuffle ---
-function shuffleArray<T>(array: T[]): T[] {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
+const triggerHaptic = (type: 'success' | 'error' | 'light') => {
+  if (typeof window !== 'undefined' && window.navigator.vibrate) {
+    if (type === 'success') window.navigator.vibrate(15);
+    else if (type === 'error') window.navigator.vibrate([30, 30, 30]);
+    else window.navigator.vibrate(10);
   }
-  return result;
-}
+};
 
 export default function App() {
   const [gameState, setGameState] = useState('START');
-  const [mode, setMode] = useState('EASY');
   const [direction, setDirection] = useState('EN_TO_JP');
   const [currentWord, setCurrentWord] = useState<Word | null>(null);
-  const [options, setOptions] = useState<string[]>([]);
-  const [userInput, setUserInput] = useState('');
-  const [timeLeft, setTimeLeft] = useState(600);
+  const [timeLeft, setTimeLeft] = useState(180); // 3分スプリント
   const [score, setScore] = useState(0);
-  const [totalAnswered, setTotalAnswered] = useState(0);
-  const [feedback, setFeedback] = useState<'CORRECT' | 'WRONG' | null>(null);
-  const [isFlipping, setIsFlipping] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  
+  // 学習履歴の管理
+  const [knownWords, setKnownWords] = useState<Word[]>([]);
+  const [unknownWords, setUnknownWords] = useState<Word[]>([]);
+  
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const getRandomWord = useCallback(() => {
-    const randomIndex = Math.floor(Math.random() * WORDS.length);
-    return WORDS[randomIndex];
-  }, []);
-
-  const generateOptions = useCallback((correctWord: Word) => {
-    const correctValue = direction === 'EN_TO_JP' ? correctWord.japanese : correctWord.english;
-    const otherWords = WORDS.filter(w => w.id !== correctWord.id);
-    const shuffledOthers = shuffleArray(otherWords);
-    const wrongOptions = shuffledOthers.slice(0, 2).map(w => 
-      direction === 'EN_TO_JP' ? w.japanese : w.english
-    );
-    return shuffleArray([correctValue, ...wrongOptions]);
-  }, [direction]);
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-150, 0, 150], [-25, 0, 25]);
+  const opacity = useTransform(x, [-150, -100, 0, 100, 150], [0, 1, 1, 1, 0]);
+  const bgRed = useTransform(x, [-100, 0], [1, 0]);
+  const bgGreen = useTransform(x, [0, 100], [0, 1]);
 
   const nextQuestion = useCallback(() => {
-    const word = getRandomWord();
-    setCurrentWord(word);
-    setOptions(generateOptions(word));
-    setUserInput('');
-    setFeedback(null);
-    setIsFlipping(false);
-  }, [getRandomWord, generateOptions]);
+    const randomIndex = Math.floor(Math.random() * WORDS.length);
+    setCurrentWord(WORDS[randomIndex]);
+    setIsFlipped(false);
+    x.set(0);
+  }, [x]);
 
   const startGame = () => {
     setGameState('PLAYING');
-    setTimeLeft(600);
+    setTimeLeft(180);
     setScore(0);
-    setTotalAnswered(0);
+    setStreak(0);
+    setKnownWords([]);
+    setUnknownWords([]);
     nextQuestion();
   };
-
-  const finishGame = useCallback(() => {
-    setGameState('FINISHED');
-    if (timerRef.current) clearInterval(timerRef.current);
-  }, []);
 
   useEffect(() => {
     if (gameState === 'PLAYING' && timeLeft > 0) {
       timerRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            finishGame();
-            return 0;
-          }
-          return prev - 1;
-        });
+        setTimeLeft(prev => (prev <= 1 ? (setGameState('FINISHED'), 0) : prev - 1));
       }, 1000);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [gameState, timeLeft, finishGame]);
+  }, [gameState, timeLeft]);
 
-  const handleAnswer = (answer: string) => {
-    if (feedback || !currentWord) return;
-    const correctAnswer = direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english;
-    const isCorrect = answer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+  const handleSwipeResult = (dir: 'right' | 'left') => {
+    if (!currentWord) return;
     
-    setFeedback(isCorrect ? 'CORRECT' : 'WRONG');
-    setTotalAnswered(prev => prev + 1);
-    if (isCorrect) setScore(prev => prev + 1);
+    if (dir === 'right') {
+      setScore(prev => prev + 1);
+      setStreak(prev => prev + 1);
+      setKnownWords(prev => [...prev, currentWord]);
+      triggerHaptic('success');
+    } else {
+      setStreak(0);
+      setUnknownWords(prev => [...prev, currentWord]);
+      triggerHaptic('error');
+    }
 
-    setTimeout(() => {
-      setIsFlipping(true);
-      setTimeout(() => {
-        nextQuestion();
-      }, 600);
-    }, 800);
+    setTimeout(() => nextQuestion(), 200);
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  // リスト内での仕分け直し用
+  const moveWord = (word: Word, fromKnown: boolean) => {
+    if (fromKnown) {
+      setKnownWords(prev => prev.filter(w => w.id !== word.id));
+      setUnknownWords(prev => [word, ...prev]);
+    } else {
+      setUnknownWords(prev => prev.filter(w => w.id !== word.id));
+      setKnownWords(prev => [word, ...prev]);
+    }
+    triggerHaptic('light');
   };
 
   return (
-    <div className="h-screen w-full bg-white text-slate-900 font-sans flex items-center justify-center p-3 overflow-hidden relative overflow-y-auto sm:overflow-hidden">
-      {/* 背景グラデーション */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[10%] right-[5%] w-[60%] h-[60%] bg-pink-400/10 rounded-full blur-[100px] pointer-events-none" />
-
+    <div className={`h-screen w-full flex items-center justify-center p-4 bg-white overflow-hidden relative`}>
       <AnimatePresence mode="wait">
-        {/* スタート画面 */}
         {gameState === 'START' && (
-          <motion.div 
-            key="start"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.1 }}
-            className="max-w-md w-full text-center space-y-4 md:space-y-8 z-10"
-          >
-            <div className="space-y-1">
-              <h1 className="text-4xl md:text-6xl font-black text-slate-900">FlashCard8</h1>
-              <p className="text-slate-400 text-sm">Junior High English Mastery</p>
-            </div>
-
-            <div className="grid gap-2 md:gap-3">
-              <button 
-                onClick={() => setDirection(prev => prev === 'EN_TO_JP' ? 'JP_TO_EN' : 'EN_TO_JP')}
-                className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <ArrowRightLeft className="w-4 h-4 text-blue-500" />
-                  <span className="font-bold text-slate-600">学習方向</span>
-                </div>
-                <span className="text-blue-600 font-bold">{direction === 'EN_TO_JP' ? '英 → 日' : '日 → 英'}</span>
-              </button>
-
-              <button 
-                onClick={() => setMode(prev => prev === 'EASY' ? 'HARD' : 'EASY')}
-                className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <Settings2 className="w-4 h-4 text-purple-500" />
-                  <span className="font-bold text-slate-600">モード</span>
-                </div>
-                <span className="text-purple-600 font-bold">{mode === 'EASY' ? '3択' : '記述'}</span>
-              </button>
-            </div>
-
-            <button 
-              onClick={startGame}
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-transform"
-            >
-              START
+          <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-8 z-10">
+            <h1 className="text-5xl font-black text-slate-900 tracking-tighter">SwipeSprint 8</h1>
+            <button onClick={() => setDirection(prev => prev === 'EN_TO_JP' ? 'JP_TO_EN' : 'EN_TO_JP')} className="px-6 py-2 bg-slate-50 rounded-full font-bold text-blue-600 flex items-center gap-2 mx-auto border border-slate-100">
+              <ArrowRightLeft className="w-4 h-4" /> {direction === 'EN_TO_JP' ? '英 → 日' : '日 → 英'}
             </button>
+            <button onClick={startGame} className="w-full py-5 px-12 bg-slate-900 text-white rounded-3xl font-black text-xl shadow-2xl">3 MIN SPRINT START</button>
+            <p className="text-slate-400 text-[10px] font-bold uppercase">Right: Known / Left: Unknown</p>
           </motion.div>
         )}
 
-        {/* プレイ画面 */}
         {gameState === 'PLAYING' && currentWord && (
-          <motion.div 
-            key="playing"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="w-full max-w-lg flex flex-col gap-2 md:gap-6 z-10"
-          >
-            {/* Header: ステータス */}
-            <div className="flex justify-between items-center text-xs md:text-sm font-bold">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm">
-                <Timer className="w-3.5 h-3.5 text-blue-500" />
-                <span className="font-mono text-slate-700">{formatTime(timeLeft)}</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm">
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-slate-700">{score} / {totalAnswered}</span>
-              </div>
+          <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm flex flex-col gap-4 z-10">
+            <div className="flex justify-between items-center px-4 font-black">
+              <div className="flex items-center gap-1.5"><Timer className="text-blue-500 w-4 h-4" />{timeLeft}s</div>
+              <div className="flex items-center gap-1.5"><Flame className="text-orange-500 w-4 h-4" />{streak}</div>
+              <div className="flex items-center gap-1.5"><Trophy className="text-amber-500 w-4 h-4" />{score}</div>
             </div>
 
-            {/* メインカード: 高さを極限まで圧縮 (160px) */}
-            <div className="relative h-[160px] md:h-[280px] w-full perspective-1000">
-              <motion.div 
-                animate={{ rotateY: isFlipping ? 180 : 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-full h-full relative preserve-3d"
+            <div className="relative h-[400px] w-full mt-4">
+              <motion.div style={{ x, rotate, opacity }} drag="x" dragConstraints={{ left: 0, right: 0 }}
+                onDragEnd={(_, info) => {
+                  if (info.offset.x > 80) handleSwipeResult('right');
+                  else if (info.offset.x < -80) handleSwipeResult('left');
+                }}
+                onClick={() => { setIsFlipped(!isFlipped); triggerHaptic('light'); }}
+                className="w-full h-full relative cursor-grab active:cursor-grabbing preserve-3d"
               >
-                {/* 表面 */}
-                <div className="absolute inset-0 backface-hidden bg-white rounded-3xl border-2 border-slate-50 shadow-xl flex flex-col items-center justify-center p-4">
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase mb-2">
-                    {currentWord.partOfSpeech}
-                  </span>
-                  <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">
-                    {direction === 'EN_TO_JP' ? currentWord.english : currentWord.japanese}
-                  </h2>
-                </div>
+                <motion.div style={{ opacity: bgGreen }} className="absolute inset-0 bg-emerald-500 rounded-[2.5rem] flex items-center justify-center text-white font-black text-3xl">覚えた！</motion.div>
+                <motion.div style={{ opacity: bgRed }} className="absolute inset-0 bg-rose-500 rounded-[2.5rem] flex items-center justify-center text-white font-black text-3xl">不安...</motion.div>
 
-                {/* 裏面 */}
-                <div className="absolute inset-0 backface-hidden bg-slate-900 rounded-3xl flex items-center justify-center p-4 rotate-y-180">
-                  <h2 className="text-3xl md:text-5xl font-black text-white">
-                    {direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english}
-                  </h2>
-                </div>
+                <motion.div animate={{ rotateY: isFlipped ? 180 : 0 }} className="absolute inset-0 bg-white rounded-[2.5rem] border-4 border-slate-50 shadow-2xl flex flex-col items-center justify-center p-8 backface-hidden z-10">
+                  <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-1 rounded mb-4">{currentWord.partOfSpeech}</span>
+                  <h2 className="text-4xl font-black text-slate-900">{direction === 'EN_TO_JP' ? currentWord.english : currentWord.japanese}</h2>
+                  <p className="mt-10 text-slate-300 text-[10px] font-bold">TAP TO SEE MEANING</p>
+                </motion.div>
+
+                <motion.div animate={{ rotateY: isFlipped ? 0 : -180 }} className="absolute inset-0 bg-slate-900 rounded-[2.5rem] flex flex-col items-center justify-center p-8 backface-hidden z-10">
+                  <h2 className="text-4xl font-black text-white">{direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english}</h2>
+                </motion.div>
               </motion.div>
+            </div>
+          </motion.div>
+        )}
 
-              {/* フィードバック表示 */}
-              <AnimatePresence>
-                {feedback && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                    className="absolute top-2 right-2 z-20"
-                  >
-                    {feedback === 'CORRECT' ? (
-                      <div className="bg-emerald-500 p-2 rounded-xl shadow-lg shadow-emerald-200">
-                        <CheckCircle2 className="w-6 h-6 text-white" />
-                      </div>
-                    ) : (
-                      <div className="bg-rose-500 p-2 rounded-xl shadow-lg shadow-rose-200">
-                        <XCircle className="w-6 h-6 text-white" />
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        {gameState === 'FINISHED' && (
+          <motion.div key="finished" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full max-w-lg flex flex-col z-10 pt-4 pb-20">
+            <div className="bg-white p-6 rounded-3xl shadow-xl mb-4 text-center">
+              <Trophy className="w-10 h-10 text-amber-500 mx-auto mb-2" />
+              <h2 className="text-2xl font-black">Session Over!</h2>
+              <p className="text-slate-500 text-sm">覚えた単語: {knownWords.length} / 未習得: {unknownWords.length}</p>
             </div>
 
-            {/* 選択肢ボタン: スリム化 (py-3) */}
-            <div className="w-full pt-1">
-              {mode === 'EASY' ? (
-                <div className="grid grid-cols-1 gap-2">
-                  {options.map((opt, i) => (
-                    <motion.button
-                      key={i}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleAnswer(opt)}
-                      disabled={!!feedback}
-                      className={`py-3 md:py-5 px-4 rounded-2xl font-bold text-base md:text-xl transition-all border-2 shadow-sm ${
-                        feedback === 'CORRECT' && opt === (direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english)
-                          ? 'bg-emerald-500 border-emerald-400 text-white'
-                          : feedback === 'WRONG' && opt === (direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english)
-                          ? 'bg-emerald-500 border-emerald-400 text-white animate-pulse'
-                          : 'bg-white border-white text-slate-700 active:bg-slate-50'
-                      }`}
-                    >
-                      {opt}
-                    </motion.button>
+            {/* 復習・仕分けリストエリア */}
+            <div className="flex-1 overflow-y-auto space-y-6 px-2 custom-scrollbar">
+              <section>
+                <h3 className="flex items-center gap-2 text-rose-500 font-black text-sm mb-3"><XCircle className="w-4 h-4" /> 不安な単語（右スワイプで覚えたに移動）</h3>
+                <div className="grid gap-2">
+                  {unknownWords.map(w => (
+                    <motion.div layout key={w.id} className="bg-rose-50 p-4 rounded-2xl flex justify-between items-center border border-rose-100 shadow-sm"
+                      drag="x" dragConstraints={{ left: 0, right: 100 }} onDragEnd={(_, info) => info.offset.x > 50 && moveWord(w, false)}>
+                      <div><p className="font-black text-slate-800">{w.english}</p><p className="text-xs text-rose-400 font-bold">{w.japanese}</p></div>
+                      <Eye className="w-4 h-4 text-rose-300" />
+                    </motion.div>
                   ))}
                 </div>
-              ) : (
-                <input 
-                  autoFocus
-                  type="text"
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAnswer(userInput)}
-                  disabled={!!feedback}
-                  placeholder="答えを入力..."
-                  className="w-full py-4 px-6 bg-white border-2 border-slate-100 rounded-2xl text-lg md:text-2xl font-bold text-center focus:outline-none focus:border-blue-400 shadow-lg text-slate-800"
-                />
-              )}
-            </div>
-          </motion.div>
-        )}
+              </section>
 
-        {/* 終了画面 */}
-        {gameState === 'FINISHED' && (
-          <motion.div 
-            key="finished"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="max-w-sm w-full text-center space-y-4 z-10"
-          >
-            <div className="p-6 bg-white rounded-[2rem] border border-slate-100 shadow-xl space-y-4">
-              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto">
-                <Trophy className="w-8 h-8 text-amber-500" />
-              </div>
-              <h2 className="text-2xl font-black">Session Clear!</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-3 rounded-xl text-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">正解</p>
-                  <p className="text-2xl font-black text-slate-800">{score}</p>
+              <section>
+                <h3 className="flex items-center gap-2 text-emerald-500 font-black text-sm mb-3"><CheckCircle2 className="w-4 h-4" /> 覚えた単語（左スワイプで不安に移動）</h3>
+                <div className="grid gap-2">
+                  {knownWords.map(w => (
+                    <motion.div layout key={w.id} className="bg-emerald-50 p-4 rounded-2xl flex justify-between items-center border border-emerald-100 shadow-sm"
+                      drag="x" dragConstraints={{ left: -100, right: 0 }} onDragEnd={(_, info) => info.offset.x < -50 && moveWord(w, true)}>
+                      <div><p className="font-black text-slate-800">{w.english}</p><p className="text-xs text-emerald-400 font-bold">{w.japanese}</p></div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                    </motion.div>
+                  ))}
                 </div>
-                <div className="bg-slate-50 p-3 rounded-xl text-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">精度</p>
-                  <p className="text-2xl font-black text-slate-800">
-                    {totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 0}%
-                  </p>
-                </div>
-              </div>
+              </section>
             </div>
-            <button 
-              onClick={() => setGameState('START')}
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2"
-            >
-              <RotateCcw className="w-5 h-5" />
-              TRY AGAIN
-            </button>
+
+            <div className="fixed bottom-6 left-4 right-4 max-w-lg mx-auto">
+              <button onClick={() => setGameState('START')} className="w-full py-5 bg-slate-900 text-white rounded-[2rem] font-black text-lg flex items-center justify-center gap-2 shadow-2xl">
+                <RotateCcw className="w-5 h-5" /> RESTART SPRINT
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
