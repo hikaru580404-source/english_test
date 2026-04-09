@@ -9,7 +9,7 @@ import {
   AnimatePresence,
   useMotionValue,
   useTransform
-} from 'motion/react';
+} from 'framer-motion';
 import { 
   Trophy, 
   Timer, 
