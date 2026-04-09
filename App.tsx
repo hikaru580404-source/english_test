@@ -199,7 +199,7 @@ export default function App() {
                   <div className="p-2 bg-blue-50 rounded-xl">
                     <ArrowRightLeft size={20} className="text-blue-500 group-hover:rotate-180 transition-transform duration-500" />
                   </div>
-                  <span className="font-bold text-slate-700">
+                  <span className="font-bold text-slate-700 md:text-base text-sm">
                     {direction === 'EN_TO_JP' ? 'English → Japanese' : 'Japanese → English'}
                   </span>
                 </div>
@@ -223,64 +223,65 @@ export default function App() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="w-full max-w-2xl flex flex-col gap-8"
+            className="w-full max-w-2xl flex flex-col gap-4 md:gap-8" // スマホではgap-4、PCではgap-8に
           >
             {/* Header Info - iOS Style Pill */}
             <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-3 bg-white/80 backdrop-blur-xl px-5 py-2.5 rounded-full border border-white shadow-sm">
+              <div className="flex items-center gap-2 md:gap-3 bg-white/80 backdrop-blur-xl px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white shadow-sm">
                 <Timer size={18} className="text-blue-500" />
-                <span className="font-display font-bold text-xl tabular-nums text-slate-900">{formatTime(timeLeft)}</span>
+                <span className="font-display font-bold text-lg md:text-xl tabular-nums text-slate-900">{formatTime(timeLeft)}</span>
               </div>
-              <div className="flex items-center gap-3 bg-white/80 backdrop-blur-xl px-5 py-2.5 rounded-full border border-white shadow-sm">
+              <div className="flex items-center gap-2 md:gap-3 bg-white/80 backdrop-blur-xl px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white shadow-sm">
                 <Trophy size={18} className="text-orange-400" />
-                <span className="font-display font-bold text-xl text-slate-900">{score}</span>
-                <span className="text-slate-400 text-sm font-medium">/ {totalAnswered}</span>
+                <span className="font-display font-bold text-lg md:text-xl text-slate-900">{score}</span>
+                <span className="text-slate-400 text-xs md:text-sm font-medium">/ {totalAnswered}</span>
               </div>
             </div>
 
             {/* Flashcard - Bubble Feel */}
-            <div className="relative h-[340px] w-full perspective-1000">
+            <div className="relative h-[240px] md:h-[340px] w-full perspective-1000"> {/* スマホで高さを240pxに縮小 */}
               <motion.div
                 animate={{ rotateY: isFlipping ? 180 : 0 }}
                 transition={{ duration: 0.6, type: 'spring', stiffness: 260, damping: 20 }}
                 className="w-full h-full relative preserve-3d"
               >
                 {/* Front */}
-                <div className="absolute inset-0 bg-white border border-white rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.08)] flex flex-col items-center justify-center p-8 backface-hidden">
-                  <div className="px-4 py-1 bg-blue-50 rounded-full mb-6">
-                    <span className="text-blue-500 font-bold uppercase tracking-widest text-xs">
+                <div className="absolute inset-0 bg-white border border-white rounded-[2rem] md:rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.08)] flex flex-col items-center justify-center p-4 md:p-8 backface-hidden">
+                  <div className="px-4 py-1 bg-blue-50 rounded-full mb-3 md:mb-6">
+                    <span className="text-blue-500 font-bold uppercase tracking-widest text-[10px] md:text-xs">
                       {currentWord.partOfSpeech}
                     </span>
                   </div>
-                  <h2 className="text-6xl md:text-8xl font-display font-extrabold text-center text-slate-900 break-words max-w-full">
+                  {/* スマホで文字サイズを少し縮小 (text-4xl) */}
+                  <h2 className="text-4xl md:text-8xl font-display font-extrabold text-center text-slate-900 break-words max-w-full">
                     {direction === 'EN_TO_JP' ? currentWord.english : currentWord.japanese}
                   </h2>
                 </div>
 
                 {/* Back */}
-                <div className="absolute inset-0 bg-blue-500 border border-blue-400 rounded-[3rem] shadow-2xl flex flex-col items-center justify-center p-8 backface-hidden rotate-y-180">
-                  <h2 className="text-5xl md:text-7xl font-display font-extrabold text-center text-white">
+                <div className="absolute inset-0 bg-blue-500 border border-blue-400 rounded-[2rem] md:rounded-[3rem] shadow-2xl flex flex-col items-center justify-center p-4 md:p-8 backface-hidden rotate-y-180">
+                  <h2 className="text-3xl md:text-7xl font-display font-extrabold text-center text-white">
                     {direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english}
                   </h2>
                 </div>
               </motion.div>
 
-              {/* Feedback Overlay - Moved to corner and made transparent */}
+              {/* Feedback Overlay */}
               <AnimatePresence>
                 {feedback && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.5, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    className="absolute top-6 right-6 z-20 pointer-events-none"
+                    className="absolute top-4 right-4 md:top-6 md:right-6 z-20 pointer-events-none"
                   >
                     {feedback === 'CORRECT' ? (
-                      <div className="bg-emerald-500/80 backdrop-blur-sm text-white p-4 rounded-2xl shadow-lg shadow-emerald-200/50">
-                        <CheckCircle2 size={32} />
+                      <div className="bg-emerald-500/80 backdrop-blur-sm text-white p-3 md:p-4 rounded-xl md:rounded-2xl shadow-lg shadow-emerald-200/50">
+                        <CheckCircle2 size={24} className="md:w-8 md:h-8" />
                       </div>
                     ) : (
-                      <div className="bg-rose-500/80 backdrop-blur-sm text-white p-4 rounded-2xl shadow-lg shadow-rose-200/50">
-                        <XCircle size={32} />
+                      <div className="bg-rose-500/80 backdrop-blur-sm text-white p-3 md:p-4 rounded-xl md:rounded-2xl shadow-lg shadow-rose-200/50">
+                        <XCircle size={24} className="md:w-8 md:h-8" />
                       </div>
                     )}
                   </motion.div>
@@ -291,7 +292,7 @@ export default function App() {
             {/* Answer Section - Bubble Buttons */}
             <div className="px-2">
               {mode === 'EASY' ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4"> {/* スマホでボタンの間隔を狭める */}
                   {options.map((opt, i) => (
                     <motion.button
                       key={i}
@@ -299,7 +300,8 @@ export default function App() {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => handleAnswer(opt)}
                       disabled={!!feedback}
-                      className={`py-6 px-6 rounded-[2rem] font-bold text-xl transition-all border-2 shadow-sm ${
+                      /* スマホでボタンの高さ(py)と文字サイズ(text-lg)を縮小 */
+                      className={`py-4 px-4 md:py-6 md:px-6 rounded-2xl md:rounded-[2rem] font-bold text-lg md:text-xl transition-all border-2 shadow-sm ${
                         feedback === 'CORRECT' && opt === (direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english)
                           ? 'bg-emerald-500 border-emerald-400 text-white shadow-emerald-100'
                           : feedback === 'WRONG' && opt === (direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english)
@@ -321,10 +323,11 @@ export default function App() {
                     onKeyDown={(e) => e.key === 'Enter' && handleAnswer(userInput)}
                     disabled={!!feedback}
                     placeholder="Type the answer..."
-                    className="w-full py-7 px-10 bg-white border-2 border-white rounded-[2.5rem] text-2xl font-bold text-center focus:outline-none focus:border-blue-400 transition-all shadow-lg shadow-slate-100 placeholder:text-slate-300 text-slate-800"
+                    /* スマホでInputの高さを縮小 */
+                    className="w-full py-4 px-6 md:py-7 md:px-10 bg-white border-2 border-white rounded-3xl md:rounded-[2.5rem] text-xl md:text-2xl font-bold text-center focus:outline-none focus:border-blue-400 transition-all shadow-lg shadow-slate-100 placeholder:text-slate-300 text-slate-800"
                   />
-                  <div className="absolute right-6 top-1/2 -translate-y-1/2 text-blue-200 pointer-events-none">
-                    <Keyboard size={28} />
+                  <div className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 text-blue-200 pointer-events-none">
+                    <Keyboard size={24} className="md:w-7 md:h-7" />
                   </div>
                 </div>
               )}
