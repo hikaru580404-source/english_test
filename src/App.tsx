@@ -1,6 +1,6 @@
 /**
  * @license
- * SwipeSprint 8 - Dynamic Master Fluid Edition
+ * SwipeSprint 8 - Professional Dynamic Edition v2.3
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -11,6 +11,7 @@ import {
   Timer, 
   RotateCcw, 
   Play, 
+  Pause,
   CheckCircle2, 
   XCircle,
   BrainCircuit,
@@ -88,18 +89,19 @@ export default function App() {
   const [direction, setDirection] = useState<DirectionMode>('EN_TO_JP');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(180);
+  const [isPaused, setIsPaused] = useState(false);
   const [results, setResults] = useState<QuizResult[]>([]);
   const [quizOptions, setQuizOptions] = useState<{left: string, right: string}>({left: '', right: ''});
   const [shuffledQueue, setShuffledQueue] = useState<typeof WORDS>([]);
 
-  // --- Physical Motion Values ---
+  // Physical Motion
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-300, 300], [-60, 60]); // 60度まで大きく回転
+  const rotate = useTransform(x, [-300, 300], [-60, 60]);
   const opacity = useTransform(x, [-350, -250, 0, 250, 350], [0, 1, 1, 1, 0]);
-  const y = useTransform(x, (latest) => -Math.abs(latest) * 0.4); // 40%の浮力（高く浮く）
+  const y = useTransform(x, (latest) => -Math.abs(latest) * 0.4);
   const scale = useTransform(x, [-200, 0, 200], [1.1, 1, 1.1]);
 
-  // Choice Label Overlays - カード内の色と文字
+  // Neutral Selection Overlays (Color change from Success/Fail to Action Blue)
   const leftOverlayOpacity = useTransform(x, [-200, -50], [1, 0]);
   const rightOverlayOpacity = useTransform(x, [50, 200], [0, 1]);
 
@@ -108,11 +110,8 @@ export default function App() {
     const others = WORDS.filter(w => w.id !== correctWord.id);
     const wrongWord = others[Math.floor(Math.random() * others.length)];
     const wrongVal = mode === 'EN_TO_JP' ? wrongWord.japanese : wrongWord.english;
-    
     const isCorrectOnRight = Math.random() > 0.5;
-    return isCorrectOnRight 
-      ? { right: correctVal, left: wrongVal } 
-      : { right: wrongVal, left: correctVal };
+    return isCorrectOnRight ? { right: correctVal, left: wrongVal } : { right: wrongVal, left: correctVal };
   }, []);
 
   const startGame = () => {
@@ -121,18 +120,19 @@ export default function App() {
     setResults([]);
     setCurrentIndex(0);
     setTimeLeft(180);
+    setIsPaused(false);
     setQuizOptions(generateOptions(queue[0], direction));
     setGameState('PLAYING');
   };
 
   const handleSwipe = (swipeDir: 'right' | 'left') => {
+    if (isPaused) return;
     const currentWord = shuffledQueue[currentIndex % shuffledQueue.length];
     const correctVal = direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english;
     const selectedVal = swipeDir === 'right' ? quizOptions.right : quizOptions.left;
     const isCorrect = selectedVal === correctVal;
 
     if (window.navigator.vibrate) window.navigator.vibrate(60);
-
     setResults(prev => [...prev, { word: currentWord, isCorrect, userMastery: 'unsure' }]);
     
     const nextIdx = currentIndex + 1;
@@ -148,26 +148,25 @@ export default function App() {
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (gameState === 'PLAYING' && timeLeft > 0) {
+    if (gameState === 'PLAYING' && timeLeft > 0 && !isPaused) {
       timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
     } else if (timeLeft === 0 && gameState === 'PLAYING') {
       setGameState('FINISHED');
     }
     return () => clearInterval(timer);
-  }, [gameState, timeLeft]);
+  }, [gameState, timeLeft, isPaused]);
 
   return (
     <div className="min-h-[100dvh] w-full flex flex-col items-center justify-between bg-slate-50 font-sans overflow-hidden select-none relative pt-safe pb-safe antialiased">
       
-      {/* Background Ambience */}
+      {/* Background */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-5%] left-[-10%] w-[500px] h-[500px] bg-blue-100/50 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-100/50 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-[-5%] left-[-10%] w-[500px] h-[500px] bg-blue-100/50 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-100/50 rounded-full blur-[120px]" />
       </div>
 
       <AnimatePresence mode="wait">
-        
-        {/* START SCREEN */}
+        {/* --- START SCREEN --- */}
         {gameState === 'START' && (
           <motion.div key="start" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center w-full max-w-sm px-6 text-center space-y-12 z-10">
             <div className="space-y-6">
@@ -177,111 +176,104 @@ export default function App() {
               <h1 className="text-7xl font-black text-slate-900 tracking-tighter leading-none">
                 Swipe<span className="text-blue-600">Sprint</span><span className="text-blue-500 opacity-30 text-5xl font-black">8</span>
               </h1>
-              <p className="text-slate-500 font-bold text-xl px-4">大きくスワイプして答えろ！</p>
+              <p className="text-slate-500 font-black text-lg uppercase tracking-tight">Intuitive English Mastery</p>
             </div>
 
-            <div className="w-full bg-white/60 backdrop-blur-3xl p-8 rounded-[3.5rem] border border-white shadow-2xl space-y-8">
-              <div className="flex bg-slate-200/50 p-2 rounded-3xl gap-2 shadow-inner border border-white/50">
-                <button onClick={() => setDirection('EN_TO_JP')} className={`flex-1 py-5 rounded-2xl font-black text-sm transition-all ${direction === 'EN_TO_JP' ? 'bg-white text-blue-600 shadow-md scale-105' : 'text-slate-400 hover:text-slate-600'}`}>
-                  英 → 日
+            <div className="w-full bg-white/60 backdrop-blur-3xl p-8 rounded-[3rem] border border-white shadow-2xl space-y-8">
+              <div className="flex bg-slate-200/50 p-2 rounded-3xl gap-2 shadow-inner">
+                <button onClick={() => setDirection('EN_TO_JP')} className={`flex-1 py-5 rounded-2xl font-black text-sm transition-all ${direction === 'EN_TO_JP' ? 'bg-white text-blue-600 shadow-md scale-105' : 'text-slate-400'}`}>
+                  EN → 日
                 </button>
-                <button onClick={() => setDirection('JP_TO_EN')} className={`flex-1 py-5 rounded-2xl font-black text-sm transition-all ${direction === 'JP_TO_EN' ? 'bg-white text-blue-600 shadow-md scale-105' : 'text-slate-400 hover:text-slate-600'}`}>
-                  日 → 英
+                <button onClick={() => setDirection('JP_TO_EN')} className={`flex-1 py-5 rounded-2xl font-black text-sm transition-all ${direction === 'JP_TO_EN' ? 'bg-white text-blue-600 shadow-md scale-105' : 'text-slate-400'}`}>
+                  日 → EN
                 </button>
               </div>
-              <button onClick={startGame} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-3xl shadow-2xl hover:brightness-125 active:scale-95 transition-all flex items-center justify-center gap-4">
+              <button onClick={startGame} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-3xl shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-4">
                 <Play size={32} fill="currentColor" /> START
               </button>
             </div>
           </motion.div>
         )}
 
-        {/* PLAYING SCREEN */}
+        {/* --- PLAYING SCREEN --- */}
         {gameState === 'PLAYING' && (
           <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md h-[100dvh] flex flex-col items-center justify-between p-4 z-10 overflow-hidden">
             
-            {/* Header - Massive Bold */}
-            <div className="w-full flex justify-between items-center bg-white px-8 py-6 rounded-[2.5rem] shadow-2xl border border-white mt-4">
-              <div className="flex items-center gap-4 text-slate-900 font-black text-4xl tabular-nums">
-                <Timer className="text-blue-600" size={36} strokeWidth={3} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+            {/* Header with Pause Button */}
+            <div className="w-full flex justify-between items-center bg-white px-8 py-6 rounded-[2.5rem] shadow-2xl border border-white mt-4 relative">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3 text-slate-900 font-black text-4xl tabular-nums">
+                  <Timer className={isPaused ? "text-slate-300" : "text-blue-600"} size={36} strokeWidth={3} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                </div>
+                <button 
+                  onClick={() => setIsPaused(!isPaused)} 
+                  className="p-3 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-colors text-slate-600"
+                >
+                  {isPaused ? <Play size={24} fill="currentColor" /> : <Pause size={24} fill="currentColor" />}
+                </button>
               </div>
-              <div className="text-slate-300 font-black text-2xl uppercase tracking-tighter">
-                #{results.length + 1}
-              </div>
+              <div className="text-slate-300 font-black text-2xl uppercase">#{results.length + 1}</div>
+              
+              {isPaused && (
+                <div className="absolute inset-0 bg-white/80 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center z-50">
+                  <span className="text-slate-900 font-black text-xl tracking-widest uppercase">Paused</span>
+                </div>
+              )}
             </div>
 
-            {/* Main Dynamic Card */}
+            {/* Main Card */}
             <div className="relative flex-1 w-full flex items-center justify-center overflow-visible">
               <motion.div
-                drag="x"
+                drag={!isPaused ? "x" : false}
                 dragConstraints={{ left: 0, right: 0 }}
                 style={{ x, y, rotate, opacity, scale }}
                 onDragEnd={(_, info) => {
-                  // 反応閾値を 200px に強化（ダイナミックな動き）
                   if (info.offset.x > 200) handleSwipe('right');
                   else if (info.offset.x < -200) handleSwipe('left');
                 }}
-                whileGrab={{ cursor: 'grabbing' }}
-                className="relative z-20 w-[min(92%,380px)] aspect-[3/4.2] bg-white rounded-[5rem] shadow-[0_120px_200px_-60px_rgba(0,0,0,0.35)] border border-white flex flex-col items-center justify-center p-8 touch-none"
+                className={`relative z-20 w-[min(92%,380px)] aspect-[3/4.2] bg-white rounded-[5rem] shadow-[0_120px_200px_-60px_rgba(0,0,0,0.35)] border border-white flex flex-col items-center justify-center p-8 touch-none ${isPaused ? 'opacity-50 grayscale cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
               >
-                {/* CHOICE OVERLAYS - 超巨大・極太 */}
-                <motion.div style={{ opacity: leftOverlayOpacity }} className="absolute inset-0 bg-rose-600 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none">
+                {/* BLUE OVERLAYS - Neutral Selection */}
+                <motion.div style={{ opacity: leftOverlayOpacity }} className="absolute inset-0 bg-blue-600 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
                   <ChevronLeft size={100} className="text-white/40 mb-4" strokeWidth={8} />
-                  <span className="text-white text-7xl font-black text-center leading-none tracking-tighter break-words max-w-full drop-shadow-2xl">{quizOptions.left}</span>
+                  <span className="text-white text-7xl font-black text-center leading-none tracking-tighter break-words max-full drop-shadow-2xl">{quizOptions.left}</span>
                 </motion.div>
 
-                <motion.div style={{ opacity: rightOverlayOpacity }} className="absolute inset-0 bg-emerald-600 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none">
+                <motion.div style={{ opacity: rightOverlayOpacity }} className="absolute inset-0 bg-blue-600 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
                   <ChevronRight size={100} className="text-white/40 mb-4" strokeWidth={8} />
-                  <span className="text-white text-7xl font-black text-center leading-none tracking-tighter break-words max-w-full drop-shadow-2xl">{quizOptions.right}</span>
+                  <span className="text-white text-7xl font-black text-center leading-none tracking-tighter break-words max-full drop-shadow-2xl">{quizOptions.right}</span>
                 </motion.div>
 
-                {/* QUESTION WORD - CENTERED & LARGE */}
                 <div className="text-center w-full px-4">
-                  <h2 className="text-7xl md:text-8xl font-black text-slate-900 leading-[1] tracking-tighter break-words">
+                  <h2 className="text-7xl md:text-9xl font-black text-slate-900 leading-[1] tracking-tighter break-words">
                     {direction === 'EN_TO_JP' 
                       ? shuffledQueue[currentIndex % shuffledQueue.length]?.english 
                       : shuffledQueue[currentIndex % shuffledQueue.length]?.japanese}
                   </h2>
                 </div>
-
-                {/* VISUAL GUIDE HINT */}
-                <div className="absolute bottom-16 flex flex-col items-center gap-6 opacity-40 w-full px-12">
-                   <div className="flex justify-between w-full text-slate-900 font-black text-sm uppercase tracking-widest">
-                     <span className="flex items-center gap-1 font-black">{quizOptions.left}</span>
-                     <span className="flex items-center gap-1 font-black">{quizOptions.right}</span>
-                   </div>
-                   <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <motion.div 
-                        animate={{ x: [-50, 50] }}
-                        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                        className="w-12 h-full bg-blue-500/50"
-                      />
-                   </div>
-                </div>
               </motion.div>
             </div>
-
             <div className="h-6" /> 
           </motion.div>
         )}
 
-        {/* FINISHED SCREEN */}
+        {/* --- FINISHED SCREEN --- */}
         {gameState === 'FINISHED' && (
           <motion.div key="finished" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl min-h-[100dvh] p-6 flex flex-col items-center justify-between z-10 py-10 overflow-y-auto">
             <div className="text-center space-y-4 py-6">
               <Trophy size={96} className="mx-auto text-orange-400 drop-shadow-2xl animate-bounce" />
-              <h2 className="text-6xl font-black text-slate-900 tracking-tighter">Great Work!</h2>
+              <h2 className="text-6xl font-black text-slate-900 tracking-tighter">Mission Clear!</h2>
               <p className="text-slate-500 font-bold text-xl uppercase tracking-widest">Training Summary</p>
             </div>
 
             <div className="w-full bg-white rounded-[4rem] shadow-2xl overflow-hidden p-3 md:p-6 mb-8 flex-1 border border-slate-100">
               <div className="max-h-[52vh] overflow-y-auto space-y-4 custom-scrollbar px-2 py-4">
                 {results.map((item, i) => (
-                  <div key={i} className="flex flex-col items-center bg-slate-50 p-7 rounded-[3rem] border border-slate-200 gap-6 transition-all shadow-sm">
+                  <div key={i} className="flex flex-col items-center bg-slate-50 p-7 rounded-[3rem] border border-slate-200 gap-6 shadow-sm">
                     <div className="flex items-center gap-6 w-full">
                       {item.isCorrect 
-                        ? <div className="p-4 bg-emerald-100 rounded-3xl text-emerald-600 shadow-sm"><CheckCircle2 size={40} strokeWidth={5} /></div> 
-                        : <div className="p-4 bg-rose-100 rounded-3xl text-rose-500 shadow-sm"><XCircle size={40} strokeWidth={5} /></div>
+                        ? <div className="p-4 bg-emerald-100 rounded-3xl text-emerald-600"><CheckCircle2 size={40} strokeWidth={5} /></div> 
+                        : <div className="p-4 bg-rose-100 rounded-3xl text-rose-500"><XCircle size={40} strokeWidth={5} /></div>
                       }
                       <div className="flex-1">
                         <div className="text-4xl font-black text-slate-900 leading-none mb-2">{item.word.english}</div>
@@ -315,7 +307,7 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
         body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; margin: 0; padding: 0; }
         * { touch-action: manipulation; }
-        .perspective-1000 { perspective: 2500px; }
+        .perspective-1000 { perspective: 3000px; }
       `}</style>
     </div>
   );
