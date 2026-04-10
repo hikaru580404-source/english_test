@@ -1,11 +1,11 @@
 /**
  * @license
- * SwipeSprint 8 - Full Screen Fluid Edition
+ * SwipeSprint 8 - Full Screen 2D Fluid Edition v3.0
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import { 
   Trophy, 
   Timer, 
@@ -96,13 +96,12 @@ export default function App() {
 
   // --- Physical Motion Values ---
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-300, 300], [-60, 60]); 
-  const opacity = useTransform(x, [-350, -250, 0, 250, 350], [0, 1, 1, 1, 0]);
-  const y = useTransform(x, (latest) => -Math.abs(latest) * 0.4); 
-  const scale = useTransform(x, [-200, 0, 200], [1.1, 1, 1.1]);
+  const y = useMotionValue(0); // Y軸も完全に自由な操作を許可
+  const rotate = useTransform(x, [-300, 300], [-30, 30]); // 回転角は自然な30度に
+  const scale = useTransform(x, [-200, 0, 200], [1.05, 1, 1.05]);
 
-  const leftOverlayOpacity = useTransform(x, [-200, -50], [1, 0]);
-  const rightOverlayOpacity = useTransform(x, [50, 200], [0, 1]);
+  const leftOverlayOpacity = useTransform(x, [-150, -50], [1, 0]);
+  const rightOverlayOpacity = useTransform(x, [50, 150], [0, 1]);
 
   const generateOptions = useCallback((correctWord: typeof WORDS[0], mode: DirectionMode) => {
     const correctVal = mode === 'EN_TO_JP' ? correctWord.japanese : correctWord.english;
@@ -125,11 +124,11 @@ export default function App() {
     setIsPaused(false);
     setQuizOptions(generateOptions(queue[0], direction));
     setGameState('PLAYING');
+    x.set(0);
+    y.set(0);
   };
 
   const handleSwipe = (swipeDir: 'right' | 'left') => {
-    if (isPaused) return;
-
     const currentWord = shuffledQueue[currentIndex % shuffledQueue.length];
     const correctVal = direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english;
     const selectedVal = swipeDir === 'right' ? quizOptions.right : quizOptions.left;
@@ -142,7 +141,10 @@ export default function App() {
     const nextIdx = currentIndex + 1;
     setCurrentIndex(nextIdx);
     setQuizOptions(generateOptions(shuffledQueue[nextIdx % shuffledQueue.length], direction));
+    
+    // アニメーションなしで瞬時に中央へ戻す（次のカードの準備完了）
     x.set(0);
+    y.set(0);
   };
 
   const toggleMastery = (index: number, status: 'remembered' | 'unsure') => {
@@ -204,7 +206,7 @@ export default function App() {
           <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md h-[100dvh] flex flex-col items-center justify-between z-10 overflow-hidden">
             
             {/* Header */}
-            <div className="w-full flex justify-between items-center bg-white/90 backdrop-blur-md px-6 py-4 rounded-b-[2rem] shadow-md border-b border-white z-30">
+            <div className="w-full flex justify-between items-center bg-white/90 backdrop-blur-md px-6 py-4 rounded-b-[2rem] shadow-sm border-b border-slate-100 z-30">
               <div className="flex items-center gap-4">
                 <div className={`flex items-center gap-3 font-black text-3xl tabular-nums ${isPaused ? 'text-slate-300' : 'text-slate-900'}`}>
                   <Timer className={isPaused ? 'text-slate-300' : 'text-blue-600'} size={28} strokeWidth={3} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
@@ -221,15 +223,38 @@ export default function App() {
               </div>
             </div>
 
-            {/* Main Dynamic Card (全画面化) */}
+            {/* Main Dynamic Card (全画面化＆2Dフリームーブ) */}
             <div className="relative flex-1 w-full flex items-center justify-center overflow-visible px-2 py-4">
               <motion.div
-                drag={isPaused ? false : "x"}
-                dragConstraints={{ left: 0, right: 0 }}
-                style={{ x, y, rotate, opacity, scale }}
-                onDragEnd={(_, info) => {
-                  if (info.offset.x > 200) handleSwipe('right');
-                  else if (info.offset.x < -200) handleSwipe('left');
+                drag={!isPaused}
+                // constraintsを外すことで、2D（XY軸）の自由なドラッグを可能にする
+                dragConstraints={undefined}
+                style={{ x, y, rotate, scale }}
+                onDragEnd={async (_, info) => {
+                  const threshold = 120;
+                  const velocityThreshold = 500;
+                  
+                  const isRight = info.offset.x > threshold || info.velocity.x > velocityThreshold;
+                  const isLeft = info.offset.x < -threshold || info.velocity.x < -velocityThreshold;
+
+                  if (isRight) {
+                    // 非同期で画面外へ飛ばす
+                    await Promise.all([
+                      animate(x, window.innerWidth, { duration: 0.25, ease: "easeOut" }),
+                      animate(y, info.offset.y + info.velocity.y * 0.2, { duration: 0.25, ease: "easeOut" })
+                    ]);
+                    handleSwipe('right'); // 完全に消えた後に処理
+                  } else if (isLeft) {
+                    await Promise.all([
+                      animate(x, -window.innerWidth, { duration: 0.25, ease: "easeOut" }),
+                      animate(y, info.offset.y + info.velocity.y * 0.2, { duration: 0.25, ease: "easeOut" })
+                    ]);
+                    handleSwipe('left');
+                  } else {
+                    // 閾値に満たない場合は中央へバネのように戻る
+                    animate(x, 0, { type: "spring", stiffness: 300, damping: 20 });
+                    animate(y, 0, { type: "spring", stiffness: 300, damping: 20 });
+                  }
                 }}
                 whileGrab={isPaused ? {} : { cursor: 'grabbing' }}
                 className="relative z-20 w-full h-[85vh] bg-white rounded-t-[3rem] rounded-b-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.1)] flex flex-col items-center justify-center p-8 touch-none overflow-hidden"
@@ -321,7 +346,7 @@ export default function App() {
         .custom-scrollbar::-webkit-scrollbar { width: 10px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
-        body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; margin: 0; padding: 0; }
+        body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; margin: 0; padding: 0; overflow: hidden; }
         * { touch-action: manipulation; }
         .perspective-1000 { perspective: 2500px; }
       `}</style>
