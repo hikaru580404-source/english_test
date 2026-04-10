@@ -1,6 +1,6 @@
 /**
  * @license
- * SwipeSprint 8 - Dynamic Master Fluid Edition (Corrected)
+ * SwipeSprint 8 - Dynamic Master Fluid Edition v2.4 (Blue Base & No Wrap)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -89,7 +89,7 @@ export default function App() {
   const [direction, setDirection] = useState<DirectionMode>('EN_TO_JP');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(180);
-  const [isPaused, setIsPaused] = useState(false); // 一時停止ステータス
+  const [isPaused, setIsPaused] = useState(false);
   const [results, setResults] = useState<QuizResult[]>([]);
   const [quizOptions, setQuizOptions] = useState<{left: string, right: string}>({left: '', right: ''});
   const [shuffledQueue, setShuffledQueue] = useState<typeof WORDS>([]);
@@ -101,7 +101,6 @@ export default function App() {
   const y = useTransform(x, (latest) => -Math.abs(latest) * 0.4); 
   const scale = useTransform(x, [-200, 0, 200], [1.1, 1, 1.1]);
 
-  // Choice Label Overlays - カード内の色と文字
   const leftOverlayOpacity = useTransform(x, [-200, -50], [1, 0]);
   const rightOverlayOpacity = useTransform(x, [50, 200], [0, 1]);
 
@@ -129,7 +128,7 @@ export default function App() {
   };
 
   const handleSwipe = (swipeDir: 'right' | 'left') => {
-    if (isPaused) return; // 一時停止中はスワイプ無効
+    if (isPaused) return;
 
     const currentWord = shuffledQueue[currentIndex % shuffledQueue.length];
     const correctVal = direction === 'EN_TO_JP' ? currentWord.japanese : currentWord.english;
@@ -182,7 +181,6 @@ export default function App() {
               <h1 className="text-7xl font-black text-slate-900 tracking-tighter leading-none">
                 Swipe<span className="text-blue-600">Sprint</span><span className="text-blue-500 opacity-30 text-5xl font-black">8</span>
               </h1>
-              {/* ダサいと言われた文言のみを削除し、余計な文字は追加しない */}
             </div>
 
             <div className="w-full bg-white/60 backdrop-blur-3xl p-8 rounded-[3.5rem] border border-white shadow-2xl space-y-8">
@@ -205,7 +203,7 @@ export default function App() {
         {gameState === 'PLAYING' && (
           <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md h-[100dvh] flex flex-col items-center justify-between p-4 z-10 overflow-hidden">
             
-            {/* Header - 停止ボタンの追加 */}
+            {/* Header */}
             <div className="w-full flex justify-between items-center bg-white px-8 py-6 rounded-[2.5rem] shadow-2xl border border-white mt-4">
               <div className="flex items-center gap-4">
                 <div className={`flex items-center gap-4 font-black text-4xl tabular-nums ${isPaused ? 'text-slate-300' : 'text-slate-900'}`}>
@@ -226,7 +224,7 @@ export default function App() {
             {/* Main Dynamic Card */}
             <div className="relative flex-1 w-full flex items-center justify-center overflow-visible">
               <motion.div
-                drag={isPaused ? false : "x"} // 一時停止中はドラッグ不可
+                drag={isPaused ? false : "x"}
                 dragConstraints={{ left: 0, right: 0 }}
                 style={{ x, y, rotate, opacity, scale }}
                 onDragEnd={(_, info) => {
@@ -236,31 +234,31 @@ export default function App() {
                 whileGrab={isPaused ? {} : { cursor: 'grabbing' }}
                 className="relative z-20 w-[min(92%,380px)] aspect-[3/4.2] bg-white rounded-[5rem] shadow-[0_120px_200px_-60px_rgba(0,0,0,0.35)] border border-white flex flex-col items-center justify-center p-8 touch-none"
               >
-                {/* CHOICE OVERLAYS - ニュートラルな「濃灰色」に変更し、正誤の誤認を防ぐ */}
-                <motion.div style={{ opacity: leftOverlayOpacity }} className="absolute inset-0 bg-slate-800 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none">
+                {/* CHOICE OVERLAYS - 左右ともに「青ベース」に変更、文字の折り返し防止 */}
+                <motion.div style={{ opacity: leftOverlayOpacity }} className="absolute inset-0 bg-blue-600 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
                   <ChevronLeft size={100} className="text-white/40 mb-4" strokeWidth={8} />
-                  <span className="text-white text-7xl font-black text-center leading-none tracking-tighter break-words max-w-full drop-shadow-2xl">{quizOptions.left}</span>
+                  <span className="text-white text-5xl md:text-6xl font-black text-center leading-none tracking-tighter whitespace-nowrap drop-shadow-2xl">{quizOptions.left}</span>
                 </motion.div>
 
-                <motion.div style={{ opacity: rightOverlayOpacity }} className="absolute inset-0 bg-slate-800 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none">
+                <motion.div style={{ opacity: rightOverlayOpacity }} className="absolute inset-0 bg-blue-600 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
                   <ChevronRight size={100} className="text-white/40 mb-4" strokeWidth={8} />
-                  <span className="text-white text-7xl font-black text-center leading-none tracking-tighter break-words max-w-full drop-shadow-2xl">{quizOptions.right}</span>
+                  <span className="text-white text-5xl md:text-6xl font-black text-center leading-none tracking-tighter whitespace-nowrap drop-shadow-2xl">{quizOptions.right}</span>
                 </motion.div>
 
-                {/* QUESTION WORD - CENTERED & LARGE */}
-                <div className="text-center w-full px-4">
-                  <h2 className="text-7xl md:text-8xl font-black text-slate-900 leading-[1] tracking-tighter break-words">
+                {/* QUESTION WORD - CENTERED & SMALLER & NO-WRAP */}
+                <div className="text-center w-full px-2 overflow-hidden flex items-center justify-center">
+                  <h2 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.2] tracking-tighter whitespace-nowrap">
                     {direction === 'EN_TO_JP' 
                       ? shuffledQueue[currentIndex % shuffledQueue.length]?.english 
                       : shuffledQueue[currentIndex % shuffledQueue.length]?.japanese}
                   </h2>
                 </div>
 
-                {/* VISUAL GUIDE HINT - 消してしまったガイド表示を復元 */}
+                {/* VISUAL GUIDE HINT */}
                 <div className="absolute bottom-16 flex flex-col items-center gap-6 opacity-40 w-full px-12">
                    <div className="flex justify-between w-full text-slate-900 font-black text-sm uppercase tracking-widest">
-                     <span className="flex items-center gap-1 font-black">{quizOptions.left}</span>
-                     <span className="flex items-center gap-1 font-black">{quizOptions.right}</span>
+                     <span className="flex items-center gap-1 font-black whitespace-nowrap">{quizOptions.left}</span>
+                     <span className="flex items-center gap-1 font-black whitespace-nowrap">{quizOptions.right}</span>
                    </div>
                    <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
                       <motion.div 
@@ -295,9 +293,9 @@ export default function App() {
                         ? <div className="p-4 bg-emerald-100 rounded-3xl text-emerald-600 shadow-sm"><CheckCircle2 size={40} strokeWidth={5} /></div> 
                         : <div className="p-4 bg-rose-100 rounded-3xl text-rose-500 shadow-sm"><XCircle size={40} strokeWidth={5} /></div>
                       }
-                      <div className="flex-1">
-                        <div className="text-4xl font-black text-slate-900 leading-none mb-2">{item.word.english}</div>
-                        <div className="text-xl text-slate-500 font-black tracking-tighter uppercase">{item.word.japanese}</div>
+                      <div className="flex-1 overflow-hidden">
+                        <div className="text-3xl md:text-4xl font-black text-slate-900 leading-none mb-2 whitespace-nowrap overflow-hidden text-ellipsis">{item.word.english}</div>
+                        <div className="text-lg md:text-xl text-slate-500 font-black tracking-tighter uppercase whitespace-nowrap overflow-hidden text-ellipsis">{item.word.japanese}</div>
                       </div>
                     </div>
                     
