@@ -1,10 +1,10 @@
 /**
  * @license
- * SwipeSprint 8 - Professional Learning Edition
+ * SwipeSprint 8 - Professional Learning Edition (Shuffle Patch)
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { 
   Trophy, 
@@ -16,11 +16,10 @@ import {
   BrainCircuit,
   HelpCircle,
   ChevronRight,
-  ChevronLeft,
-  Settings2
+  ChevronLeft
 } from 'lucide-react';
 
-// --- 中学2年生 必須単語データセット ---
+// --- 中学2年生 必須単語データセット (50語) ---
 const WORDS = [
   { id: 1, english: 'Experience', japanese: '経験', pos: 'Noun' },
   { id: 2, english: 'Believe', japanese: '信じる', pos: 'Verb' },
@@ -47,6 +46,31 @@ const WORDS = [
   { id: 23, english: 'Environment', japanese: '環境', pos: 'Noun' },
   { id: 24, english: 'Success', japanese: '成功', pos: 'Noun' },
   { id: 25, english: 'Adventure', japanese: '冒険', pos: 'Noun' },
+  { id: 26, english: 'Medicine', japanese: '薬', pos: 'Noun' },
+  { id: 27, english: 'Opposite', japanese: '反対の', pos: 'Adj' },
+  { id: 28, english: 'Reason', japanese: '理由', pos: 'Noun' },
+  { id: 29, english: 'Schedule', japanese: '予定', pos: 'Noun' },
+  { id: 30, english: 'Volunteer', japanese: 'ボランティア', pos: 'Noun' },
+  { id: 31, english: 'Quality', japanese: '質', pos: 'Noun' },
+  { id: 32, english: 'Memory', japanese: '記憶', pos: 'Noun' },
+  { id: 33, english: 'Opinion', japanese: '意見', pos: 'Noun' },
+  { id: 34, english: 'Patient', japanese: '忍耐強い', pos: 'Adj' },
+  { id: 35, english: 'Recognize', japanese: '認識する', pos: 'Verb' },
+  { id: 36, english: 'Journey', japanese: '旅', pos: 'Noun' },
+  { id: 37, english: 'Knowledge', japanese: '知識', pos: 'Noun' },
+  { id: 38, english: 'Language', japanese: '言語', pos: 'Noun' },
+  { id: 39, english: 'Education', japanese: '教育', pos: 'Noun' },
+  { id: 40, english: 'Brave', japanese: '勇敢な', pos: 'Adj' },
+  { id: 41, english: 'Awful', japanese: 'ひどい', pos: 'Adj' },
+  { id: 42, english: 'Comfortable', japanese: '快適な', pos: 'Adj' },
+  { id: 43, english: 'Destroy', japanese: '破壊する', pos: 'Verb' },
+  { id: 44, english: 'Notice', japanese: '気づく', pos: 'Verb' },
+  { id: 45, english: 'Foreign', japanese: '外国の', pos: 'Adj' },
+  { id: 46, english: 'Harvest', japanese: '収穫', pos: 'Noun' },
+  { id: 47, english: 'Produce', japanese: '生産する', pos: 'Verb' },
+  { id: 48, english: 'Understand', japanese: '理解する', pos: 'Verb' },
+  { id: 49, english: 'Condition', japanese: '状態', pos: 'Noun' },
+  { id: 50, english: 'Excellent', japanese: '優れた', pos: 'Adj' },
 ];
 
 type GameState = 'START' | 'PLAYING' | 'FINISHED';
@@ -69,22 +93,24 @@ export default function App() {
 
   // Motion Values
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-250, 250], [-40, 40]); // 回転をさらにダイナミックに
-  const opacity = useTransform(x, [-250, -200, 0, 200, 250], [0, 1, 1, 1, 0]);
-  const y = useTransform(x, (latest) => -Math.abs(latest) * 0.2); // 浮遊感：大きく浮く
+  const rotate = useTransform(x, [-250, 250], [-45, 45]);
+  const opacity = useTransform(x, [-300, -250, 0, 250, 300], [0, 1, 1, 1, 0]);
+  const y = useTransform(x, (latest) => -Math.abs(latest) * 0.25); // 浮遊感：さらに浮くように調整
 
-  // Overlay Opacity (カード上のガイド表示用)
-  const leftGuideOpacity = useTransform(x, [-150, -50], [1, 0]);
-  const rightGuideOpacity = useTransform(x, [50, 150], [0, 1]);
+  // Overlay Opacity (カード上の正解・不正解ガイド)
+  const leftGuideOpacity = useTransform(x, [-180, -60], [1, 0]);
+  const rightGuideOpacity = useTransform(x, [60, 180], [0, 1]);
 
   const generateOptions = useCallback((correctWord: typeof WORDS[0], mode: DirectionMode) => {
     const correctVal = mode === 'EN_TO_JP' ? correctWord.japanese : correctWord.english;
     const others = WORDS.filter(w => w.id !== correctWord.id);
-    const wrongVal = mode === 'EN_TO_JP' 
-      ? others[Math.floor(Math.random() * others.length)].japanese 
-      : others[Math.floor(Math.random() * others.length)].english;
+    const wrongWord = others[Math.floor(Math.random() * others.length)];
+    const wrongVal = mode === 'EN_TO_JP' ? wrongWord.japanese : wrongWord.english;
     
-    return Math.random() > 0.5 
+    // 正解を右にするか左にするか完全にランダム化
+    const isCorrectOnRight = Math.random() > 0.5;
+    
+    return isCorrectOnRight 
       ? { right: correctVal, left: wrongVal } 
       : { right: wrongVal, left: correctVal };
   }, []);
@@ -133,10 +159,10 @@ export default function App() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-start bg-slate-50 font-sans overflow-hidden select-none relative pt-safe pb-safe">
       
-      {/* Dynamic Background Elements */}
+      {/* Background Decor */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-60 animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-pink-100 rounded-full blur-3xl opacity-60 animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-[-5%] right-[-5%] w-80 h-80 bg-blue-200/40 rounded-full blur-[100px] animate-pulse" />
+        <div className="absolute bottom-[-5%] left-[-5%] w-96 h-96 bg-pink-200/40 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2.5s' }} />
       </div>
 
       <AnimatePresence mode="wait">
@@ -145,26 +171,26 @@ export default function App() {
         {gameState === 'START' && (
           <motion.div key="start" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center min-h-[90vh] p-6 text-center space-y-12 z-10 w-full max-w-sm">
             <div className="space-y-4">
-              <motion.div initial={{ y: -20 }} animate={{ y: 0 }} className="inline-block px-4 py-1.5 bg-blue-600 text-white rounded-full text-xs font-black tracking-widest uppercase shadow-lg">
+              <motion.div initial={{ y: -10 }} animate={{ y: 0 }} className="inline-block px-5 py-2 bg-slate-900 text-white rounded-full text-xs font-black tracking-widest uppercase shadow-lg">
                 MMC Educations
               </motion.div>
-              <h1 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter leading-none">
-                Swipe<span className="text-blue-600">Sprint</span> 8
+              <h1 className="text-7xl font-black text-slate-900 tracking-tighter leading-none">
+                Swipe<span className="text-blue-600">Sprint</span><span className="text-blue-400">8</span>
               </h1>
-              <p className="text-slate-400 font-bold text-lg px-4">直感スワイプで英単語をマスター</p>
+              <p className="text-slate-500 font-bold text-xl px-4">シャッフル対応・英単語50問</p>
             </div>
 
-            <div className="w-full bg-white/60 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white shadow-xl space-y-6">
-              <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
-                <button onClick={() => setDirection('EN_TO_JP')} className={`flex-1 py-4 rounded-xl font-black text-sm transition-all ${direction === 'EN_TO_JP' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+            <div className="w-full bg-white/70 backdrop-blur-2xl p-8 rounded-[3rem] border border-white shadow-[0_30px_60px_-12px_rgba(0,0,0,0.12)] space-y-8">
+              <div className="flex bg-slate-100 p-2 rounded-2xl gap-2 shadow-inner border border-slate-200">
+                <button onClick={() => setDirection('EN_TO_JP')} className={`flex-1 py-4 rounded-xl font-black text-sm transition-all ${direction === 'EN_TO_JP' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}>
                   英 → 日
                 </button>
-                <button onClick={() => setDirection('JP_TO_EN')} className={`flex-1 py-4 rounded-xl font-black text-sm transition-all ${direction === 'JP_TO_EN' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                <button onClick={() => setDirection('JP_TO_EN')} className={`flex-1 py-4 rounded-xl font-black text-sm transition-all ${direction === 'JP_TO_EN' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}>
                   日 → 英
                 </button>
               </div>
-              <button onClick={startGame} className="w-full py-6 bg-slate-900 text-white rounded-3xl font-black text-2xl shadow-xl hover:scale-[1.03] active:scale-95 transition-all flex items-center justify-center gap-3">
-                <Play size={24} fill="currentColor" /> START TEST
+              <button onClick={startGame} className="w-full py-7 bg-slate-900 text-white rounded-[2.5rem] font-black text-3xl shadow-2xl hover:scale-[1.03] active:scale-95 transition-all flex items-center justify-center gap-4">
+                <Play size={28} fill="currentColor" /> START
               </button>
             </div>
           </motion.div>
@@ -172,60 +198,62 @@ export default function App() {
 
         {/* PLAYING SCREEN */}
         {gameState === 'PLAYING' && (
-          <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md h-full flex flex-col gap-6 p-4 z-10">
-            {/* Minimal Header */}
-            <div className="flex justify-between items-center bg-white/80 backdrop-blur-md px-6 py-4 rounded-3xl shadow-sm border border-white sticky top-4">
-              <div className="flex items-center gap-2 text-slate-900 font-black text-2xl tabular-nums">
-                <Timer className="text-blue-600" size={24} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+          <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md h-screen flex flex-col gap-6 p-4 z-10">
+            {/* Header */}
+            <div className="flex justify-between items-center bg-white/90 backdrop-blur-xl px-8 py-5 rounded-[2.5rem] shadow-sm border border-white mt-4">
+              <div className="flex items-center gap-3 text-slate-900 font-black text-3xl tabular-nums">
+                <Timer className="text-blue-600" size={32} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
               </div>
-              <div className="px-4 py-1 bg-slate-100 rounded-full text-slate-400 font-black text-sm uppercase">
+              <div className="px-5 py-1.5 bg-slate-900 rounded-full text-white font-black text-sm uppercase shadow-md">
                 Q.{results.length + 1}
               </div>
             </div>
 
             {/* Floating Card UI */}
-            <div className="relative flex-1 min-h-[450px] w-full flex items-center justify-center">
+            <div className="relative flex-1 min-h-[400px] w-full flex items-center justify-center">
               
               <motion.div
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 style={{ x, y, rotate, opacity }}
                 onDragEnd={(_, info) => {
-                  if (info.offset.x > 150) handleSwipe('right');
-                  else if (info.offset.x < -150) handleSwipe('left');
+                  if (info.offset.x > 160) handleSwipe('right');
+                  else if (info.offset.x < -160) handleSwipe('left');
                 }}
                 whileGrab={{ scale: 1.05 }}
-                className="relative z-20 w-full aspect-[3/4] max-h-[500px] bg-white rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.2)] border border-white flex flex-col items-center justify-center p-10 touch-none"
+                className="relative z-20 w-full aspect-[3/4] max-h-[550px] bg-white rounded-[4.5rem] shadow-[0_80px_160px_-40px_rgba(0,0,0,0.25)] border border-white flex flex-col items-center justify-center p-12 touch-none cursor-grab active:cursor-grabbing"
               >
-                {/* Overlay Answer Guides (カード内に表示) */}
-                <motion.div style={{ opacity: leftGuideOpacity }} className="absolute inset-0 bg-rose-500 rounded-[4rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none">
-                  <ChevronLeft size={80} className="text-white mb-4" strokeWidth={4} />
-                  <span className="text-white text-4xl font-black text-center leading-tight">{quizOptions.left}</span>
+                {/* Dynamic Choice Overlays */}
+                <motion.div style={{ opacity: leftGuideOpacity }} className="absolute inset-0 bg-rose-600 rounded-[4.5rem] flex flex-col items-center justify-center p-10 z-30 pointer-events-none">
+                  <ChevronLeft size={100} className="text-white mb-6" strokeWidth={5} />
+                  <span className="text-white text-5xl font-black text-center leading-tight tracking-tighter drop-shadow-lg">{quizOptions.left}</span>
                 </motion.div>
 
-                <motion.div style={{ opacity: rightGuideOpacity }} className="absolute inset-0 bg-emerald-500 rounded-[4rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none">
-                  <ChevronRight size={80} className="text-white mb-4" strokeWidth={4} />
-                  <span className="text-white text-4xl font-black text-center leading-tight">{quizOptions.right}</span>
+                <motion.div style={{ opacity: rightGuideOpacity }} className="absolute inset-0 bg-emerald-600 rounded-[4.5rem] flex flex-col items-center justify-center p-10 z-30 pointer-events-none">
+                  <ChevronRight size={100} className="text-white mb-6" strokeWidth={5} />
+                  <span className="text-white text-5xl font-black text-center leading-tight tracking-tighter drop-shadow-lg">{quizOptions.right}</span>
                 </motion.div>
 
-                {/* Question Content */}
-                <div className="text-center space-y-6">
-                  <span className="text-blue-600 font-black tracking-[0.3em] text-sm uppercase bg-blue-50 px-5 py-2 rounded-full">
+                {/* Question Info */}
+                <div className="text-center space-y-8">
+                  <span className="text-blue-600 font-black tracking-[0.4em] text-sm uppercase bg-blue-50 px-6 py-2.5 rounded-full border border-blue-100">
                     {shuffledQueue[currentIndex % shuffledQueue.length]?.pos}
                   </span>
-                  <h2 className="text-6xl md:text-7xl font-black text-slate-900 leading-[1.1] tracking-tighter">
+                  <h2 className="text-6xl md:text-8xl font-black text-slate-900 leading-[1] tracking-tighter">
                     {direction === 'EN_TO_JP' 
                       ? shuffledQueue[currentIndex % shuffledQueue.length]?.english 
                       : shuffledQueue[currentIndex % shuffledQueue.length]?.japanese}
                   </h2>
                 </div>
 
-                <div className="absolute bottom-12 flex flex-col items-center gap-3 opacity-30">
-                  <div className="flex gap-16 justify-between w-full text-slate-900 font-black text-sm">
-                    <span className="flex items-center"><ChevronLeft size={16}/> {quizOptions.left}</span>
-                    <span className="flex items-center">{quizOptions.right} <ChevronRight size={16}/></span>
+                <div className="absolute bottom-16 flex flex-col items-center gap-4 opacity-50 w-full px-12">
+                  <div className="flex justify-between w-full text-slate-900 font-black text-lg">
+                    <span className="flex items-center gap-1"><ChevronLeft size={20}/> {quizOptions.left}</span>
+                    <span className="flex items-center gap-1">{quizOptions.right} <ChevronRight size={20}/></span>
                   </div>
-                  <div className="w-16 h-1 bg-slate-200 rounded-full" />
+                  <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div animate={{ x: [-40, 40] }} transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }} className="w-12 h-full bg-blue-500/40" />
+                  </div>
                 </div>
               </motion.div>
             </div>
@@ -234,34 +262,36 @@ export default function App() {
 
         {/* FINISHED SCREEN */}
         {gameState === 'FINISHED' && (
-          <motion.div key="finished" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl p-4 flex flex-col gap-6 z-10 pb-12">
-            <div className="text-center space-y-2 py-4">
-              <Trophy size={72} className="mx-auto text-orange-400" />
-              <h2 className="text-4xl font-black text-slate-900">Training Result</h2>
-              <p className="text-slate-500 font-bold">結果を確認し、学習状況を記録しましょう</p>
+          <motion.div key="finished" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl p-6 flex flex-col gap-6 z-10 pb-16">
+            <div className="text-center space-y-3 py-6">
+              <div className="relative inline-block">
+                <Trophy size={80} className="mx-auto text-orange-400 drop-shadow-xl animate-bounce" />
+              </div>
+              <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Mission Clear!</h2>
+              <p className="text-slate-500 font-bold text-xl">学習内容を仕分けましょう</p>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-2xl rounded-[3rem] border border-white shadow-2xl overflow-hidden p-4 md:p-8">
-              <div className="max-h-[50vh] overflow-y-auto space-y-4 custom-scrollbar pr-2">
+            <div className="bg-white/90 backdrop-blur-2xl rounded-[3.5rem] border border-white shadow-2xl overflow-hidden p-4">
+              <div className="max-h-[55vh] overflow-y-auto space-y-4 custom-scrollbar px-2 py-4">
                 {results.map((item, i) => (
-                  <div key={i} className="flex flex-col md:flex-row items-center justify-between bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100 gap-4">
-                    <div className="flex items-center gap-5 w-full md:w-auto">
+                  <div key={i} className="flex flex-col md:flex-row items-center justify-between bg-slate-50 p-7 rounded-[2.5rem] border border-slate-200 shadow-sm gap-5 transition-all hover:border-blue-200">
+                    <div className="flex items-center gap-6 w-full md:w-auto">
                       {item.isCorrect 
-                        ? <div className="p-3 bg-emerald-100 rounded-2xl text-emerald-600"><CheckCircle2 size={32} strokeWidth={3} /></div> 
-                        : <div className="p-3 bg-rose-100 rounded-2xl text-rose-500"><XCircle size={32} strokeWidth={3} /></div>
+                        ? <div className="p-3.5 bg-emerald-100 rounded-2xl text-emerald-600 shadow-sm"><CheckCircle2 size={36} strokeWidth={4} /></div> 
+                        : <div className="p-3.5 bg-rose-100 rounded-2xl text-rose-500 shadow-sm"><XCircle size={36} strokeWidth={4} /></div>
                       }
                       <div>
-                        <div className="text-2xl font-black text-slate-900 leading-tight">{item.word.english}</div>
-                        <div className="text-base text-slate-500 font-black">{item.word.japanese}</div>
+                        <div className="text-3xl font-black text-slate-900 leading-none mb-2">{item.word.english}</div>
+                        <div className="text-lg text-slate-500 font-black tracking-wide uppercase">{item.word.japanese}</div>
                       </div>
                     </div>
                     
                     <div className="flex bg-white p-2 rounded-3xl border border-slate-200 w-full md:w-auto shadow-inner">
-                      <button onClick={() => toggleMastery(i, 'remembered')} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black text-sm transition-all ${item.userMastery === 'remembered' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-300'}`}>
-                        <BrainCircuit size={20} /> 覚えた
+                      <button onClick={() => toggleMastery(i, 'remembered')} className={`flex-1 flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-sm transition-all ${item.userMastery === 'remembered' ? 'bg-emerald-600 text-white shadow-lg scale-[1.03]' : 'text-slate-300 hover:text-slate-400'}`}>
+                        <BrainCircuit size={22} /> 覚えた
                       </button>
-                      <button onClick={() => toggleMastery(i, 'unsure')} className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black text-sm transition-all ${item.userMastery === 'unsure' ? 'bg-rose-500 text-white shadow-lg' : 'text-slate-300'}`}>
-                        <HelpCircle size={20} /> 不安
+                      <button onClick={() => toggleMastery(i, 'unsure')} className={`flex-1 flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-black text-sm transition-all ${item.userMastery === 'unsure' ? 'bg-rose-500 text-white shadow-lg scale-[1.03]' : 'text-slate-300 hover:text-slate-400'}`}>
+                        <HelpCircle size={22} /> 不安
                       </button>
                     </div>
                   </div>
@@ -269,7 +299,7 @@ export default function App() {
               </div>
             </div>
 
-            <button onClick={() => setGameState('START')} className="w-full py-7 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl flex items-center justify-center gap-4 shadow-2xl hover:bg-black transition-all active:scale-95 sticky bottom-4">
+            <button onClick={() => setGameState('START')} className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl flex items-center justify-center gap-4 shadow-2xl hover:bg-black transition-all active:scale-95">
               <RotateCcw size={32} /> SAVE & RESTART
             </button>
           </motion.div>
@@ -277,14 +307,13 @@ export default function App() {
       </AnimatePresence>
 
       <style>{`
-        .vertical-rl { writing-mode: vertical-rl; }
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; border: 3px solid #f8fafc; }
         body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; }
         * { touch-action: manipulation; }
-        .pt-safe { padding-top: env(safe-area-inset-top); }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .pt-safe { padding-top: env(safe-area-inset-top, 16px); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
       `}</style>
     </div>
   );
