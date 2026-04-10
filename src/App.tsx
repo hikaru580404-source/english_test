@@ -1,6 +1,6 @@
 /**
  * @license
- * SwipeSprint 8 - Full Screen 2D Fluid Edition v3.0
+ * SwipeSprint 8 - Full Screen 2D Fluid Edition v3.1 (Large Hint Text)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -96,8 +96,8 @@ export default function App() {
 
   // --- Physical Motion Values ---
   const x = useMotionValue(0);
-  const y = useMotionValue(0); // Y軸も完全に自由な操作を許可
-  const rotate = useTransform(x, [-300, 300], [-30, 30]); // 回転角は自然な30度に
+  const y = useMotionValue(0);
+  const rotate = useTransform(x, [-300, 300], [-30, 30]); 
   const scale = useTransform(x, [-200, 0, 200], [1.05, 1, 1.05]);
 
   const leftOverlayOpacity = useTransform(x, [-150, -50], [1, 0]);
@@ -142,7 +142,6 @@ export default function App() {
     setCurrentIndex(nextIdx);
     setQuizOptions(generateOptions(shuffledQueue[nextIdx % shuffledQueue.length], direction));
     
-    // アニメーションなしで瞬時に中央へ戻す（次のカードの準備完了）
     x.set(0);
     y.set(0);
   };
@@ -223,11 +222,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* Main Dynamic Card (全画面化＆2Dフリームーブ) */}
+            {/* Main Dynamic Card */}
             <div className="relative flex-1 w-full flex items-center justify-center overflow-visible px-2 py-4">
               <motion.div
                 drag={!isPaused}
-                // constraintsを外すことで、2D（XY軸）の自由なドラッグを可能にする
                 dragConstraints={undefined}
                 style={{ x, y, rotate, scale }}
                 onDragEnd={async (_, info) => {
@@ -238,12 +236,11 @@ export default function App() {
                   const isLeft = info.offset.x < -threshold || info.velocity.x < -velocityThreshold;
 
                   if (isRight) {
-                    // 非同期で画面外へ飛ばす
                     await Promise.all([
                       animate(x, window.innerWidth, { duration: 0.25, ease: "easeOut" }),
                       animate(y, info.offset.y + info.velocity.y * 0.2, { duration: 0.25, ease: "easeOut" })
                     ]);
-                    handleSwipe('right'); // 完全に消えた後に処理
+                    handleSwipe('right');
                   } else if (isLeft) {
                     await Promise.all([
                       animate(x, -window.innerWidth, { duration: 0.25, ease: "easeOut" }),
@@ -251,7 +248,6 @@ export default function App() {
                     ]);
                     handleSwipe('left');
                   } else {
-                    // 閾値に満たない場合は中央へバネのように戻る
                     animate(x, 0, { type: "spring", stiffness: 300, damping: 20 });
                     animate(y, 0, { type: "spring", stiffness: 300, damping: 20 });
                   }
@@ -259,7 +255,7 @@ export default function App() {
                 whileGrab={isPaused ? {} : { cursor: 'grabbing' }}
                 className="relative z-20 w-full h-[85vh] bg-white rounded-t-[3rem] rounded-b-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.1)] flex flex-col items-center justify-center p-8 touch-none overflow-hidden"
               >
-                {/* CHOICE OVERLAYS - 青色ベース */}
+                {/* CHOICE OVERLAYS */}
                 <motion.div style={{ opacity: leftOverlayOpacity }} className="absolute inset-0 bg-blue-600 flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
                   <ChevronLeft size={100} className="text-white/40 mb-4" strokeWidth={8} />
                   <span className="text-white text-5xl md:text-6xl font-black text-center leading-none tracking-tighter whitespace-nowrap drop-shadow-2xl">{quizOptions.left}</span>
@@ -270,7 +266,7 @@ export default function App() {
                   <span className="text-white text-5xl md:text-6xl font-black text-center leading-none tracking-tighter whitespace-nowrap drop-shadow-2xl">{quizOptions.right}</span>
                 </motion.div>
 
-                {/* QUESTION WORD - CENTERED & SMALLER & NO-WRAP */}
+                {/* QUESTION WORD - CENTERED */}
                 <div className="text-center w-full px-2 overflow-hidden flex items-center justify-center">
                   <h2 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.2] tracking-tighter whitespace-nowrap">
                     {direction === 'EN_TO_JP' 
@@ -279,17 +275,17 @@ export default function App() {
                   </h2>
                 </div>
 
-                {/* VISUAL GUIDE HINT */}
-                <div className="absolute bottom-12 flex flex-col items-center gap-6 opacity-40 w-full px-8">
-                   <div className="flex justify-between w-full text-slate-900 font-black text-sm uppercase tracking-widest">
+                {/* VISUAL GUIDE HINT - 大きく見やすく修正 */}
+                <div className="absolute bottom-12 flex flex-col items-center gap-6 opacity-60 w-full px-8">
+                   <div className="flex justify-between w-full text-slate-900 font-black text-2xl md:text-3xl uppercase tracking-widest">
                      <span className="flex items-center gap-1 font-black whitespace-nowrap">{quizOptions.left}</span>
                      <span className="flex items-center gap-1 font-black whitespace-nowrap">{quizOptions.right}</span>
                    </div>
-                   <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                   <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
                       <motion.div 
                         animate={isPaused ? {} : { x: [-50, 50] }}
                         transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                        className="w-12 h-full bg-blue-500/50"
+                        className="w-12 h-full bg-blue-500/60"
                       />
                    </div>
                 </div>
