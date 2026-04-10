@@ -1,6 +1,6 @@
 /**
  * @license
- * SwipeSprint 8 - Full Screen 2D Fluid Edition v3.1 (Large Hint Text)
+ * SwipeSprint 8 - Full Screen 2D Fluid Edition v3.2 (No Overlay Text)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -225,7 +225,7 @@ export default function App() {
             {/* Main Dynamic Card */}
             <div className="relative flex-1 w-full flex items-center justify-center overflow-visible px-2 py-4">
               <motion.div
-                drag={!isPaused}
+                drag={isPaused ? false : "x"}
                 dragConstraints={undefined}
                 style={{ x, y, rotate, scale }}
                 onDragEnd={async (_, info) => {
@@ -255,18 +255,16 @@ export default function App() {
                 whileGrab={isPaused ? {} : { cursor: 'grabbing' }}
                 className="relative z-20 w-full h-[85vh] bg-white rounded-t-[3rem] rounded-b-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.1)] flex flex-col items-center justify-center p-8 touch-none overflow-hidden"
               >
-                {/* CHOICE OVERLAYS */}
+                {/* CHOICE OVERLAYS - テキストを削除し、矢印のフィードバックのみに変更 */}
                 <motion.div style={{ opacity: leftOverlayOpacity }} className="absolute inset-0 bg-blue-600 flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
-                  <ChevronLeft size={100} className="text-white/40 mb-4" strokeWidth={8} />
-                  <span className="text-white text-5xl md:text-6xl font-black text-center leading-none tracking-tighter whitespace-nowrap drop-shadow-2xl">{quizOptions.left}</span>
+                  <ChevronLeft size={120} className="text-white/80" strokeWidth={6} />
                 </motion.div>
 
                 <motion.div style={{ opacity: rightOverlayOpacity }} className="absolute inset-0 bg-blue-600 flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
-                  <ChevronRight size={100} className="text-white/40 mb-4" strokeWidth={8} />
-                  <span className="text-white text-5xl md:text-6xl font-black text-center leading-none tracking-tighter whitespace-nowrap drop-shadow-2xl">{quizOptions.right}</span>
+                  <ChevronRight size={120} className="text-white/80" strokeWidth={6} />
                 </motion.div>
 
-                {/* QUESTION WORD - CENTERED */}
+                {/* QUESTION WORD - CENTERED & SMALLER & NO-WRAP */}
                 <div className="text-center w-full px-2 overflow-hidden flex items-center justify-center">
                   <h2 className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.2] tracking-tighter whitespace-nowrap">
                     {direction === 'EN_TO_JP' 
@@ -275,7 +273,7 @@ export default function App() {
                   </h2>
                 </div>
 
-                {/* VISUAL GUIDE HINT - 大きく見やすく修正 */}
+                {/* VISUAL GUIDE HINT - 大きく見やすく維持 */}
                 <div className="absolute bottom-12 flex flex-col items-center gap-6 opacity-60 w-full px-8">
                    <div className="flex justify-between w-full text-slate-900 font-black text-2xl md:text-3xl uppercase tracking-widest">
                      <span className="flex items-center gap-1 font-black whitespace-nowrap">{quizOptions.left}</span>
