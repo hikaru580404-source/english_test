@@ -1,6 +1,6 @@
 /**
  * @license
- * SwipeSprint 8 - Dynamic Master Fluid Edition v2.4 (Blue Base & No Wrap)
+ * SwipeSprint 8 - Full Screen Fluid Edition
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -201,28 +201,28 @@ export default function App() {
 
         {/* PLAYING SCREEN */}
         {gameState === 'PLAYING' && (
-          <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md h-[100dvh] flex flex-col items-center justify-between p-4 z-10 overflow-hidden">
+          <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md h-[100dvh] flex flex-col items-center justify-between z-10 overflow-hidden">
             
             {/* Header */}
-            <div className="w-full flex justify-between items-center bg-white px-8 py-6 rounded-[2.5rem] shadow-2xl border border-white mt-4">
+            <div className="w-full flex justify-between items-center bg-white/90 backdrop-blur-md px-6 py-4 rounded-b-[2rem] shadow-md border-b border-white z-30">
               <div className="flex items-center gap-4">
-                <div className={`flex items-center gap-4 font-black text-4xl tabular-nums ${isPaused ? 'text-slate-300' : 'text-slate-900'}`}>
-                  <Timer className={isPaused ? 'text-slate-300' : 'text-blue-600'} size={36} strokeWidth={3} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                <div className={`flex items-center gap-3 font-black text-3xl tabular-nums ${isPaused ? 'text-slate-300' : 'text-slate-900'}`}>
+                  <Timer className={isPaused ? 'text-slate-300' : 'text-blue-600'} size={28} strokeWidth={3} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                 </div>
                 <button
                   onClick={() => setIsPaused(!isPaused)}
-                  className={`p-3 rounded-2xl transition-colors ${isPaused ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                  className={`p-2.5 rounded-2xl transition-colors ${isPaused ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
                 >
-                  {isPaused ? <Play size={24} fill="currentColor" /> : <Pause size={24} fill="currentColor" />}
+                  {isPaused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
                 </button>
               </div>
-              <div className="text-slate-300 font-black text-2xl uppercase tracking-tighter">
+              <div className="text-slate-300 font-black text-xl uppercase tracking-tighter">
                 #{results.length + 1}
               </div>
             </div>
 
-            {/* Main Dynamic Card */}
-            <div className="relative flex-1 w-full flex items-center justify-center overflow-visible">
+            {/* Main Dynamic Card (全画面化) */}
+            <div className="relative flex-1 w-full flex items-center justify-center overflow-visible px-2 py-4">
               <motion.div
                 drag={isPaused ? false : "x"}
                 dragConstraints={{ left: 0, right: 0 }}
@@ -232,15 +232,15 @@ export default function App() {
                   else if (info.offset.x < -200) handleSwipe('left');
                 }}
                 whileGrab={isPaused ? {} : { cursor: 'grabbing' }}
-                className="relative z-20 w-[min(92%,380px)] aspect-[3/4.2] bg-white rounded-[5rem] shadow-[0_120px_200px_-60px_rgba(0,0,0,0.35)] border border-white flex flex-col items-center justify-center p-8 touch-none"
+                className="relative z-20 w-full h-[85vh] bg-white rounded-t-[3rem] rounded-b-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.1)] flex flex-col items-center justify-center p-8 touch-none overflow-hidden"
               >
-                {/* CHOICE OVERLAYS - 左右ともに「青ベース」に変更、文字の折り返し防止 */}
-                <motion.div style={{ opacity: leftOverlayOpacity }} className="absolute inset-0 bg-blue-600 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
+                {/* CHOICE OVERLAYS - 青色ベース */}
+                <motion.div style={{ opacity: leftOverlayOpacity }} className="absolute inset-0 bg-blue-600 flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
                   <ChevronLeft size={100} className="text-white/40 mb-4" strokeWidth={8} />
                   <span className="text-white text-5xl md:text-6xl font-black text-center leading-none tracking-tighter whitespace-nowrap drop-shadow-2xl">{quizOptions.left}</span>
                 </motion.div>
 
-                <motion.div style={{ opacity: rightOverlayOpacity }} className="absolute inset-0 bg-blue-600 rounded-[5rem] flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
+                <motion.div style={{ opacity: rightOverlayOpacity }} className="absolute inset-0 bg-blue-600 flex flex-col items-center justify-center p-8 z-30 pointer-events-none border-4 border-blue-400">
                   <ChevronRight size={100} className="text-white/40 mb-4" strokeWidth={8} />
                   <span className="text-white text-5xl md:text-6xl font-black text-center leading-none tracking-tighter whitespace-nowrap drop-shadow-2xl">{quizOptions.right}</span>
                 </motion.div>
@@ -255,7 +255,7 @@ export default function App() {
                 </div>
 
                 {/* VISUAL GUIDE HINT */}
-                <div className="absolute bottom-16 flex flex-col items-center gap-6 opacity-40 w-full px-12">
+                <div className="absolute bottom-12 flex flex-col items-center gap-6 opacity-40 w-full px-8">
                    <div className="flex justify-between w-full text-slate-900 font-black text-sm uppercase tracking-widest">
                      <span className="flex items-center gap-1 font-black whitespace-nowrap">{quizOptions.left}</span>
                      <span className="flex items-center gap-1 font-black whitespace-nowrap">{quizOptions.right}</span>
@@ -270,8 +270,6 @@ export default function App() {
                 </div>
               </motion.div>
             </div>
-
-            <div className="h-6" /> 
           </motion.div>
         )}
 
