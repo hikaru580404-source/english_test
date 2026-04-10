@@ -13,10 +13,12 @@ import {
   CheckCircle2, 
   XCircle,
   BrainCircuit,
-  HelpCircle
+  HelpCircle,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 
-// テスト用データセット
+// --- テスト用データセット ---
 const WORDS = [
   { id: 1, english: 'Evaluate', japanese: '評価する', partOfSpeech: 'Verb' },
   { id: 2, english: 'Implementation', japanese: '実装', partOfSpeech: 'Noun' },
@@ -29,7 +31,7 @@ type GameState = 'START' | 'PLAYING' | 'FINISHED';
 interface QuizResult {
   word: typeof WORDS[0];
   isCorrect: boolean;
-  userMastery: 'remembered' | 'unsure'; // 終了後にユーザーが選ぶ用
+  userMastery: 'remembered' | 'unsure';
 }
 
 export default function App() {
@@ -37,56 +39,61 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(180);
   const [results, setResults] = useState<QuizResult[]>([]);
-  const [quizOptions, setQuizOptions] = useState<string[]>([]);
+  const [quizOptions, setQuizOptions] = useState<{left: string, right: string}>({left: '', right: ''});
 
   // Motion Values for Swipe logic
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0, 1, 1, 1, 0]);
+  
+  // 選択肢の文字サイズや色の変化（ドラッグ中）
+  const leftScale = useTransform(x, [-150, 0], [1.2, 1]);
+  const rightScale = useTransform(x, [0, 150], [1, 1.2]);
+  const leftOpacity = useTransform(x, [-150, 0], [1, 0.3]);
+  const rightOpacity = useTransform(x, [0, 150], [0.3, 1]);
 
-  // オプション（選択肢）の生成
+  // オプションの生成（左右をランダムに入れ替え）
   const generateOptions = useCallback((correctWord: typeof WORDS[0]) => {
-    const wrong = WORDS.find(w => w.id !== correctWord.id) || WORDS[0];
-    // 右（[0]）が選択肢1、左（[1]）が選択肢2とする
-    // ユーザーの指示「右（選択肢1）左（選択肢2）」に従い、ランダムに入れ替え
+    const otherWords = WORDS.filter(w => w.id !== correctWord.id);
+    const wrongWord = otherWords[Math.floor(Math.random() * otherWords.length)];
+    
     return Math.random() > 0.5 
-      ? [correctWord.japanese, wrong.japanese] 
-      : [wrong.japanese, correctWord.japanese];
+      ? { right: correctWord.japanese, left: wrongWord.japanese } 
+      : { right: wrongWord.japanese, left: correctWord.japanese };
   }, []);
 
   const startGame = () => {
     setResults([]);
     setCurrentIndex(0);
     setTimeLeft(180);
-    const firstWord = WORDS[0];
-    setQuizOptions(generateOptions(firstWord));
+    setQuizOptions(generateOptions(WORDS[0]));
     setGameState('PLAYING');
   };
 
   const handleSwipe = (direction: 'right' | 'left') => {
     const currentWord = WORDS[currentIndex % WORDS.length];
-    const selectedAnswer = direction === 'right' ? quizOptions[0] : quizOptions[1];
+    const selectedAnswer = direction === 'right' ? quizOptions.right : quizOptions.left;
     const isCorrect = selectedAnswer === currentWord.japanese;
 
-    // ハプティクス
-    if (window.navigator.vibrate) window.navigator.vibrate(50);
+    // ハプティクス（iPhone等で動作）
+    if (typeof window !== 'undefined' && window.navigator.vibrate) {
+      window.navigator.vibrate(50);
+    }
 
-    // 履歴追加
+    // 結果を記録
     setResults(prev => [...prev, { word: currentWord, isCorrect, userMastery: 'unsure' }]);
 
-    // 次の単語へ
+    // 次へ
     const nextIdx = currentIndex + 1;
     setCurrentIndex(nextIdx);
     setQuizOptions(generateOptions(WORDS[nextIdx % WORDS.length]));
-    x.set(0); // 位置をリセット
+    x.set(0); // 位置リセット
   };
 
-  // セルフ仕分けのトグル
-  const toggleMastery = (index: number) => {
+  // 終了後の仕分けトグル
+  const toggleMastery = (index: number, status: 'remembered' | 'unsure') => {
     setResults(prev => prev.map((item, i) => 
-      i === index 
-        ? { ...item, userMastery: item.userMastery === 'remembered' ? 'unsure' : 'remembered' } 
-        : item
+      i === index ? { ...item, userMastery: status } : item
     ));
     if (window.navigator.vibrate) window.navigator.vibrate(30);
   };
@@ -95,112 +102,129 @@ export default function App() {
     let timer: NodeJS.Timeout;
     if (gameState === 'PLAYING' && timeLeft > 0) {
       timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && gameState === 'PLAYING') {
       setGameState('FINISHED');
     }
     return () => clearInterval(timer);
   }, [gameState, timeLeft]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50 font-sans overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50 font-sans overflow-hidden select-none">
       <AnimatePresence mode="wait">
-        {/* スタート画面 */}
+        
+        {/* START SCREEN */}
         {gameState === 'START' && (
-          <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center space-y-8">
-            <h1 className="text-6xl font-black text-slate-900 tracking-tight">SwipeSprint <span className="text-blue-500">8</span></h1>
-            <p className="text-slate-500 text-xl font-medium">左右スワイプで正しい日本語を選ぼう</p>
-            <button onClick={startGame} className="px-16 py-6 bg-slate-900 text-white rounded-[2rem] font-bold text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 mx-auto">
-              <Play fill="currentColor" /> START
+          <motion.div key="start" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="text-center space-y-8">
+            <div className="space-y-2">
+              <h1 className="text-7xl font-black text-slate-900 tracking-tighter">SwipeSprint <span className="text-blue-500">8</span></h1>
+              <p className="text-slate-400 text-xl font-bold uppercase tracking-widest text-center">MMCE Test Edition</p>
+            </div>
+            <button onClick={startGame} className="px-16 py-7 bg-slate-900 text-white rounded-[2.5rem] font-bold text-2xl shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 mx-auto group">
+              <Play className="group-hover:fill-current" /> START TEST
             </button>
           </motion.div>
         )}
 
-        {/* プレイ画面 */}
+        {/* PLAYING SCREEN */}
         {gameState === 'PLAYING' && (
-          <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md flex flex-col gap-8">
-            <div className="flex justify-between items-center bg-white px-6 py-4 rounded-3xl shadow-sm border border-white">
-              <div className="flex items-center gap-2 text-blue-600 font-bold text-2xl tabular-nums">
-                <Timer size={24} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+          <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md flex flex-col gap-10">
+            {/* Header Info */}
+            <div className="flex justify-between items-center bg-white px-8 py-5 rounded-[2rem] shadow-sm border border-white">
+              <div className="flex items-center gap-3 text-blue-600 font-bold text-3xl tabular-nums">
+                <Timer size={28} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
               </div>
-              <div className="text-slate-400 font-bold">Q. {results.length + 1}</div>
+              <div className="text-slate-300 font-black text-2xl">#{results.length + 1}</div>
             </div>
 
-            <div className="relative h-[400px] w-full flex items-center justify-center perspective-1000">
-              {/* 下に隠れている選択肢のガイド */}
-              <div className="absolute inset-0 flex justify-between items-center px-4 pointer-events-none">
-                <div className="bg-rose-100 text-rose-600 p-4 rounded-2xl font-bold text-sm vertical-rl border border-rose-200 shadow-sm">
-                  {quizOptions[1]} (左)
-                </div>
-                <div className="bg-emerald-100 text-emerald-600 p-4 rounded-2xl font-bold text-sm vertical-rl border border-emerald-200 shadow-sm">
-                  {quizOptions[0]} (右)
-                </div>
-              </div>
+            {/* Swipe Area */}
+            <div className="relative h-[420px] w-full flex items-center justify-center">
+              
+              {/* Left Option Label */}
+              <motion.div 
+                style={{ scale: leftScale, opacity: leftOpacity }}
+                className="absolute left-[-20%] z-0 flex flex-col items-center text-rose-500"
+              >
+                <ChevronLeft size={48} className="mb-2" />
+                <span className="text-2xl font-black vertical-rl">{quizOptions.left}</span>
+              </motion.div>
 
+              {/* Right Option Label */}
+              <motion.div 
+                style={{ scale: rightScale, opacity: rightOpacity }}
+                className="absolute right-[-20%] z-0 flex flex-col items-center text-emerald-500"
+              >
+                <ChevronRight size={48} className="mb-2" />
+                <span className="text-2xl font-black vertical-rl">{quizOptions.right}</span>
+              </motion.div>
+
+              {/* Main Card */}
               <motion.div
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 style={{ x, rotate, opacity }}
                 onDragEnd={(_, info) => {
-                  if (info.offset.x > 100) handleSwipe('right');
-                  else if (info.offset.x < -100) handleSwipe('left');
+                  if (info.offset.x > 120) handleSwipe('right');
+                  else if (info.offset.x < -120) handleSwipe('left');
                 }}
-                className="z-10 w-full h-full bg-white rounded-[3.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] border border-slate-100 flex flex-col items-center justify-center p-10 cursor-grab active:cursor-grabbing touch-none"
+                className="z-10 w-full h-full bg-white rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border border-slate-50 flex flex-col items-center justify-center p-12 cursor-grab active:cursor-grabbing touch-none"
               >
-                <span className="text-blue-500 font-bold tracking-widest text-xs mb-4 uppercase bg-blue-50 px-3 py-1 rounded-full">
+                <span className="text-blue-500 font-black tracking-[0.2em] text-xs mb-6 uppercase bg-blue-50 px-4 py-1.5 rounded-full">
                   {WORDS[currentIndex % WORDS.length].partOfSpeech}
                 </span>
-                <h2 className="text-6xl font-black text-slate-900 text-center leading-tight">
+                <h2 className="text-6xl font-black text-slate-900 text-center leading-none tracking-tight">
                   {WORDS[currentIndex % WORDS.length].english}
                 </h2>
-                <div className="mt-12 flex items-center gap-2 text-slate-300 font-bold animate-bounce">
-                  <span>SWIPE TO ANSWER</span>
+                <div className="absolute bottom-12 text-slate-200 font-black tracking-widest text-sm animate-pulse">
+                  SWIPE TO SELECT
                 </div>
               </motion.div>
             </div>
           </motion.div>
         )}
 
-        {/* 結果・一覧仕分け画面 */}
+        {/* FINISHED SCREEN */}
         {gameState === 'FINISHED' && (
-          <motion.div key="finished" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl flex flex-col gap-6">
-            <div className="text-center">
-              <Trophy size={64} className="mx-auto text-orange-400 mb-2" />
-              <h2 className="text-4xl font-black text-slate-900">Session Review</h2>
-              <p className="text-slate-500 font-bold mt-1">正解した単語も、もう一度仕分けましょう</p>
+          <motion.div key="finished" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl flex flex-col gap-8">
+            <div className="text-center space-y-2">
+              <Trophy size={80} className="mx-auto text-orange-400 animate-bounce" />
+              <h2 className="text-5xl font-black text-slate-900">Test Complete</h2>
+              <p className="text-slate-500 font-bold text-lg">全 {results.length} 問回答しました。仕分けを行いましょう。</p>
             </div>
 
-            <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-xl overflow-hidden">
-              <div className="max-h-[50vh] overflow-y-auto p-4 space-y-3 custom-scrollbar">
+            {/* Result List */}
+            <div className="bg-white/80 backdrop-blur-2xl rounded-[3rem] border border-white shadow-2xl overflow-hidden p-6">
+              <div className="max-h-[45vh] overflow-y-auto space-y-4 pr-2 custom-scrollbar">
                 {results.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm group">
-                    <div className="flex items-center gap-4">
-                      {item.isCorrect ? <CheckCircle2 className="text-emerald-500" size={24} /> : <XCircle className="text-rose-400" size={24} />}
+                  <div key={i} className="flex items-center justify-between bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                    <div className="flex items-center gap-5">
+                      {item.isCorrect ? <CheckCircle2 className="text-emerald-500" size={32} /> : <XCircle className="text-rose-400" size={32} />}
                       <div>
-                        <div className="text-xl font-bold text-slate-900">{item.word.english}</div>
-                        <div className="text-sm text-slate-500 font-medium">{item.word.japanese}</div>
+                        <div className="text-2xl font-black text-slate-900 leading-none mb-1">{item.word.english}</div>
+                        <div className="text-sm text-slate-400 font-bold uppercase tracking-widest">{item.word.japanese}</div>
                       </div>
                     </div>
                     
-                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+                    {/* Manual Mastery Toggle */}
+                    <div className="flex bg-slate-50 p-1.5 rounded-3xl border border-slate-100">
                       <button
-                        onClick={() => toggleMastery(i)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+                        onClick={() => toggleMastery(i, 'remembered')}
+                        className={`flex items-center gap-2 px-5 py-3 rounded-[1.5rem] font-black text-sm transition-all ${
                           item.userMastery === 'remembered' 
-                            ? 'bg-emerald-500 text-white shadow-md' 
-                            : 'text-slate-400 hover:text-slate-600'
+                            ? 'bg-emerald-500 text-white shadow-lg' 
+                            : 'text-slate-300 hover:text-slate-500'
                         }`}
                       >
-                        <BrainCircuit size={16} /> 覚えた
+                        <BrainCircuit size={18} /> 覚えた
                       </button>
                       <button
-                        onClick={() => toggleMastery(i)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+                        onClick={() => toggleMastery(i, 'unsure')}
+                        className={`flex items-center gap-2 px-5 py-3 rounded-[1.5rem] font-black text-sm transition-all ${
                           item.userMastery === 'unsure' 
-                            ? 'bg-rose-400 text-white shadow-md' 
-                            : 'text-slate-400 hover:text-slate-600'
+                            ? 'bg-rose-400 text-white shadow-lg' 
+                            : 'text-slate-300 hover:text-slate-500'
                         }`}
                       >
-                        <HelpCircle size={16} /> 不安
+                        <HelpCircle size={18} /> 不安
                       </button>
                     </div>
                   </div>
@@ -208,8 +232,8 @@ export default function App() {
               </div>
             </div>
 
-            <button onClick={() => setGameState('START')} className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-bold text-xl flex items-center justify-center gap-2 shadow-xl hover:bg-slate-800 transition-colors">
-              <RotateCcw size={22} /> FINISH & RESTART
+            <button onClick={() => setGameState('START')} className="w-full py-7 bg-slate-900 text-white rounded-[2.5rem] font-black text-2xl flex items-center justify-center gap-3 shadow-2xl hover:bg-black transition-all active:scale-95">
+              <RotateCcw size={28} /> SAVE & RESTART
             </button>
           </motion.div>
         )}
@@ -218,9 +242,10 @@ export default function App() {
       <style>{`
         .perspective-1000 { perspective: 1000px; }
         .vertical-rl { writing-mode: vertical-rl; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 20px; border: 2px solid transparent; background-clip: content-box; }
+        body { -webkit-tap-highlight-color: transparent; }
       `}</style>
     </div>
   );
